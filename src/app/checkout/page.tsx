@@ -39,6 +39,15 @@ const fields = [
   },
 ] as const;
 
+function validatePincode(pincode: string) {
+  return /^[1-9][0-9]{5}$/.test(pincode.trim());
+}
+
+function validatePhone(phone: string) {
+  const digits = phone.replace(/\D/g, "");
+  return /^[6-9]\d{9}$/.test(digits.slice(-10));
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const items = useCart((s) => s.items);
@@ -60,35 +69,28 @@ export default function CheckoutPage() {
     pincode: "",
   });
 
-  const validatePincode = (pincode: string) => {
-    // Valid Indian postal PIN codes are exactly 6 digits and do not start with 0
-    const pinRegex = /^[1-9][0-9]{5}$/;
-    return pinRegex.test(pincode.trim());
-  };
-
-  // Add to your onSubmit handler before calling the create-order API:
-  if (!validatePincode(formData.pincode)) {
-    toast.error("Please enter a valid 6-digit Indian PIN code");
-    setSubmitting(false);
-    return;
-  }
-
-  if (!/^[6-9]\d{9}$/.test(formData.phone.replace(/\D/g, "").slice(-10))) {
-    toast.error("Please enter a valid 10-digit Indian mobile number");
-    setSubmitting(false);
-    return;
-  }
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    // 1. Client validations run ONLY on user submit
+    if (!validatePincode(formData.pincode)) {
+      toast.error("Please enter a valid 6-digit Indian PIN code");
+      return;
+    }
+
+    if (!validatePhone(formData.phone)) {
+      toast.error("Please enter a valid 10-digit Indian mobile number");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
-      // 1. Create order on the server
+      // 2. Create order on the server
       const res = await fetch("/api/checkout/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,7 +109,7 @@ export default function CheckoutPage() {
       if (!res.ok)
         throw new Error(orderData.error || "Order initiation failed");
 
-      // 2. Configure and launch the Razorpay Checkout modal
+      // 3. Launch Razorpay modal
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: orderData.amount,
@@ -125,7 +127,6 @@ export default function CheckoutPage() {
         },
         handler: async function (response: any) {
           try {
-            // 3. Verify signature cryptographically on backend
             const verifyRes = await fetch("/api/checkout/verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -140,10 +141,8 @@ export default function CheckoutPage() {
             const verifyData = await verifyRes.json();
 
             if (verifyRes.ok) {
-              // 4. Clear shopping cart
               clearCart();
 
-              // 5. Store order ID in browser localStorage so tracking is automatic
               const savedOrders: string[] = JSON.parse(
                 localStorage.getItem("my_orders") || "[]",
               );
@@ -198,7 +197,6 @@ export default function CheckoutPage() {
         </div>
       ) : (
         <div className="mt-10 grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
-          {/* Shipping Form */}
           <form onSubmit={onSubmit} className="border-border border p-6 sm:p-8">
             <h2 className="text-3xl">Shipping details</h2>
             <div className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -235,7 +233,6 @@ export default function CheckoutPage() {
             </p>
           </form>
 
-          {/* Cart Summary */}
           <aside className="border-border h-fit border p-6 sm:p-8">
             <h2 className="text-3xl">Order summary</h2>
             <div className="mt-6 space-y-4">
