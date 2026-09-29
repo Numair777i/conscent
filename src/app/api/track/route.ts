@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
 
+interface ShippingUpdateFields {
+  shippingStatus: string;
+  trackingNumber?: string;
+}
+
 // GET: Secure order lookup
 export async function GET(req: NextRequest) {
   try {
@@ -42,11 +47,10 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, order });
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: "Failed to fetch order status" },
-      { status: 500 },
-    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch order status";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -65,7 +69,7 @@ export async function PATCH(req: NextRequest) {
 
     await connectDB();
 
-    const updateFields: any = { shippingStatus };
+    const updateFields: ShippingUpdateFields = { shippingStatus };
     if (trackingNumber) {
       updateFields.trackingNumber = trackingNumber;
     }
@@ -81,7 +85,8 @@ export async function PATCH(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, order: updated });
-  } catch (err: any) {
-    return NextResponse.json({ error: "Update failed" }, { status: 500 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Update failed";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

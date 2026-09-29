@@ -5,6 +5,13 @@ import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
 import { formatINR } from "@/data/products";
 
+interface OrderItem {
+  name: string;
+  size: string;
+  qty: number;
+  price: number;
+}
+
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: NextRequest) {
@@ -54,7 +61,7 @@ export async function POST(req: NextRequest) {
       try {
         const itemsListHtml = updatedOrder.items
           .map(
-            (i: any) =>
+            (i: OrderItem) =>
               `<tr>
                 <td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>${i.name}</strong> (${i.size}) x ${i.qty}</td>
                 <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right;">${formatINR(i.price * i.qty)}</td>
@@ -116,11 +123,10 @@ export async function POST(req: NextRequest) {
       orderId: updatedOrder.orderId,
       trackingNumber: updatedOrder.trackingNumber,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Payment verification failed";
     console.error("Payment verification error:", error);
-    return NextResponse.json(
-      { error: "Payment verification failed" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -14,34 +14,62 @@ import {
 function TrackContent() {
   const searchParams = useSearchParams();
   const selectedOrderId = searchParams.get("orderId");
+  interface TrackItem {
+    name: string;
+    size: string;
+    qty: number;
+    price: number;
+  }
 
-  const [orders, setOrders] = useState<any[]>([]);
-  const [activeOrder, setActiveOrder] = useState<any>(null);
+  interface TrackOrder {
+    orderId: string;
+    paymentStatus: string;
+    shippingStatus: "ORDER_PLACED" | "PACKED" | "IN_TRANSIT" | "DELIVERED";
+    trackingNumber?: string;
+    total: number;
+    createdAt: string;
+    items: TrackItem[];
+  }
+
+  const [orders, setOrders] = useState<TrackOrder[]>([]);
+  const [activeOrder, setActiveOrder] = useState<TrackOrder | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Load user's previous orders automatically from localStorage
   useEffect(() => {
-    const myOrderIds = JSON.parse(localStorage.getItem("my_orders") || "[]");
+    let ignore = false;
+    const myOrderIds: string[] = JSON.parse(
+      localStorage.getItem("my_orders") || "[]",
+    );
 
     if (myOrderIds.length === 0) {
-      setLoading(false);
-      return;
+      const timer = setTimeout(() => {
+        if (!ignore) setLoading(false);
+      }, 0);
+      return () => {
+        ignore = true;
+        clearTimeout(timer);
+      };
     }
 
-    fetch(`/api/track?ids=${myOrderIds.join(",")}`)
+    fetch(`/api/track?ids=${encodeURIComponent(myOrderIds.join(","))}`)
       .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.orders) {
+      .then((data: { success?: boolean; orders?: TrackOrder[] }) => {
+        if (!ignore && data.success && data.orders) {
           setOrders(data.orders);
           const current =
-            data.orders.find((o: any) => o.orderId === selectedOrderId) ||
+            data.orders.find((o) => o.orderId === selectedOrderId) ||
             data.orders[0];
           setActiveOrder(current);
         }
       })
-      .finally(() => setLoading(false));
-  }, [selectedOrderId]);
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
 
+    return () => {
+      ignore = true;
+    };
+  }, [selectedOrderId]);
   const steps = [
     { label: "Order Placed", status: "ORDER_PLACED", icon: Clock },
     { label: "Packed", status: "PACKED", icon: Package },
@@ -176,7 +204,7 @@ function TrackContent() {
               <div className="border-t border-border pt-6">
                 <h3 className="text-xl font-bold uppercase">Items</h3>
                 <div className="mt-4 divide-y divide-border">
-                  {activeOrder.items.map((item: any, i: number) => (
+                  {activeOrder.items.map((item, i) => (
                     <div key={i} className="flex justify-between py-3 text-sm">
                       <div>
                         <span className="font-bold uppercase">{item.name}</span>

@@ -5,10 +5,42 @@ import { formatINR } from "@/data/products";
 import { toast } from "sonner";
 import { Truck, ExternalLink, RefreshCw } from "lucide-react";
 
+interface OrderItem {
+  productId: string;
+  name: string;
+  size: string;
+  qty: number;
+  price: number;
+}
+
+interface CustomerDetails {
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
+interface AdminOrder {
+  orderId: string;
+  customer: CustomerDetails;
+  items: OrderItem[];
+  subtotal: number;
+  shipping: number;
+  total: number;
+  paymentStatus: "PENDING" | "PAID" | "FAILED";
+  shippingStatus: "ORDER_PLACED" | "PACKED" | "IN_TRANSIT" | "DELIVERED";
+  trackingNumber?: string;
+  carrier: string;
+  createdAt: string;
+}
+
 export default function AdminPage() {
   const [secret, setSecret] = useState("");
   const [authenticated, setAuthenticated] = useState(false);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [awbInputs, setAwbInputs] = useState<Record<string, string>>({});
 
@@ -16,20 +48,25 @@ export default function AdminPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/orders?adminSecret=${secret}`);
+      const res = await fetch(
+        `/api/admin/orders?adminSecret=${encodeURIComponent(secret)}`,
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Authentication failed");
-      setOrders(data.orders);
+
+      const fetchedOrders: AdminOrder[] = data.orders || [];
+      setOrders(fetchedOrders);
       setAuthenticated(true);
 
       // Populate AWB inputs with existing tracking numbers
       const initialAwbs: Record<string, string> = {};
-      data.orders.forEach((o: any) => {
+      fetchedOrders.forEach((o) => {
         initialAwbs[o.orderId] = o.trackingNumber || "";
       });
       setAwbInputs(initialAwbs);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to sign in";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -37,7 +74,7 @@ export default function AdminPage() {
 
   const updateStatus = async (
     orderId: string,
-    status: string,
+    status: AdminOrder["shippingStatus"],
     customAwb?: string,
   ) => {
     try {
@@ -54,7 +91,7 @@ export default function AdminPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      if (!res.ok) throw new Error(data.error || "Failed to update order");
 
       setOrders((prev) =>
         prev.map((o) =>
@@ -68,13 +105,13 @@ export default function AdminPage() {
         ),
       );
       toast.success(`Updated ${orderId} -> ${status}`);
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Update failed";
+      toast.error(message);
     }
   };
 
   const generateDemoDelhiveryAWB = (orderId: string) => {
-    // Standard Delhivery surface waybill numbers are 13-14 digits starting with 14 or 28
     const mockDelhiveryWaybill = `14${Math.floor(10000000000 + Math.random() * 90000000000)}`;
     setAwbInputs((prev) => ({ ...prev, [orderId]: mockDelhiveryWaybill }));
     updateStatus(orderId, "IN_TRANSIT", mockDelhiveryWaybill);
@@ -161,7 +198,7 @@ export default function AdminPage() {
 
               {/* Order Items */}
               <div className="pt-2 text-xs space-y-1">
-                {o.items.map((it: any, i: number) => (
+                {o.items.map((it, i) => (
                   <div key={i} className="text-muted-foreground">
                     <span className="font-bold text-foreground uppercase">
                       {it.name}
@@ -177,7 +214,6 @@ export default function AdminPage() {
 
             {/* AWB Management & Stage Transitions */}
             <div className="flex flex-col justify-between gap-4 xl:w-[480px]">
-              {/* Custom AWB Input Box */}
               <div className="border border-border p-3 bg-tile/40">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-2">
                   Air Waybill (Delhivery Surface AWB)
@@ -197,14 +233,14 @@ export default function AdminPage() {
                   />
                   <button
                     onClick={() => updateStatus(o.orderId, o.shippingStatus)}
-                    className="bg-ink text-background hover:bg-brand px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors"
+                    className="bg-ink text-background hover:bg-brand px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors cursor-pointer"
                   >
                     Save AWB
                   </button>
                   <button
                     onClick={() => generateDemoDelhiveryAWB(o.orderId)}
                     title="Generate a realistic Delhivery tracking barcode for demo"
-                    className="border border-border hover:border-brand px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 transition-colors"
+                    className="border border-border hover:border-brand px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 transition-colors cursor-pointer"
                   >
                     <RefreshCw className="size-3" /> Demo
                   </button>

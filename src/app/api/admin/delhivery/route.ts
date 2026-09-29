@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
 
+interface DelhiveryPackage {
+  waybill: string;
+}
+
+interface DelhiveryResponse {
+  packages?: DelhiveryPackage[];
+  error?: string;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { orderId, adminSecret } = await req.json();
@@ -60,7 +69,7 @@ export async function POST(req: NextRequest) {
       },
     );
 
-    const result = await response.json();
+    const result: DelhiveryResponse = await response.json();
 
     if (result.packages && result.packages.length > 0) {
       const generatedAWB = result.packages[0].waybill;
@@ -76,7 +85,9 @@ export async function POST(req: NextRequest) {
       { error: result.error || "Failed to generate AWB from Delhivery" },
       { status: 500 },
     );
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to generate AWB";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -15,10 +15,9 @@ export async function GET(req: NextRequest) {
     const orders = await Order.find().sort({ createdAt: -1 }).lean();
 
     return NextResponse.json({ success: true, orders });
-  } catch (err: any) {
-    return NextResponse.json(
-      { error: "Failed to fetch orders" },
-      { status: 500 },
-    );
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Failed to fetch orders";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

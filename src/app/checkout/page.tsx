@@ -8,9 +8,44 @@ import { formatINR } from "@/data/products";
 import { cartSubtotal, useCart } from "@/lib/store/cart";
 import { useHydrated } from "@/hooks/use-hydrated";
 
+interface RazorpayResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayOptions {
+  key?: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  prefill: {
+    name: string;
+    email: string;
+    contact: string;
+  };
+  theme: {
+    color: string;
+  };
+  handler: (response: RazorpayResponse) => void | Promise<void>;
+  modal?: {
+    ondismiss?: () => void;
+  };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+}
+
+interface RazorpayConstructor {
+  new (options: RazorpayOptions): RazorpayInstance;
+}
+
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay?: RazorpayConstructor;
   }
 }
 
@@ -39,6 +74,8 @@ const fields = [
   },
 ] as const;
 
+type FieldName = (typeof fields)[number]["name"];
+
 function validatePincode(pincode: string) {
   return /^[1-9][0-9]{5}$/.test(pincode.trim());
 }
@@ -59,7 +96,7 @@ export default function CheckoutPage() {
   const shipping = subtotal === 0 || subtotal >= 1499 ? 0 : 99;
   const total = subtotal + shipping;
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Record<FieldName, string>>({
     fullName: "",
     email: "",
     phone: "",
@@ -70,13 +107,13 @@ export default function CheckoutPage() {
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name as FieldName]: value }));
   };
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // 1. Client validations run ONLY on user submit
     if (!validatePincode(formData.pincode)) {
       toast.error("Please enter a valid 6-digit Indian PIN code");
       return;
@@ -90,7 +127,6 @@ export default function CheckoutPage() {
     setSubmitting(true);
 
     try {
-      // 2. Create order on the server
       const res = await fetch("/api/checkout/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -106,11 +142,11 @@ export default function CheckoutPage() {
       });
 
       const orderData = await res.json();
-      if (!res.ok)
+      if (!res.ok) {
         throw new Error(orderData.error || "Order initiation failed");
+      }
 
-      // 3. Launch Razorpay modal
-      const options = {
+      const options: RazorpayOptions = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: orderData.amount,
         currency: orderData.currency,
@@ -125,7 +161,7 @@ export default function CheckoutPage() {
         theme: {
           color: "#E11D48",
         },
-        handler: async function (response: any) {
+        handler: async function (response: RazorpayResponse) {
           try {
             const verifyRes = await fetch("/api/checkout/verify", {
               method: "POST",
@@ -156,8 +192,12 @@ export default function CheckoutPage() {
             } else {
               toast.error(verifyData.error || "Payment verification failed");
             }
-          } catch (verifyError: any) {
-            toast.error(verifyError.message || "Failed to verify transaction");
+          } catch (verifyError) {
+            const message =
+              verifyError instanceof Error
+                ? verifyError.message
+                : "Failed to verify transaction";
+            toast.error(message);
           } finally {
             setSubmitting(false);
           }
@@ -169,10 +209,17 @@ export default function CheckoutPage() {
         },
       };
 
+      if (!window.Razorpay) {
+        toast.error("Razorpay SDK failed to load. Please refresh.");
+        setSubmitting(false);
+        return;
+      }
       const paymentObject = new window.Razorpay(options);
       paymentObject.open();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to process payment");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to process payment";
+      toast.error(message);
       setSubmitting(false);
     }
   };
@@ -212,7 +259,7 @@ export default function CheckoutPage() {
                     required
                     name={f.name}
                     type={f.type}
-                    value={(formData as any)[f.name]}
+                    value={formData[f.name]}
                     onChange={handleChange}
                     autoComplete={f.autoComplete}
                     className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none"
