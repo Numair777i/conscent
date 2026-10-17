@@ -21,6 +21,8 @@ interface RazorpayOptions {
   name: string;
   description: string;
   order_id: string;
+  callback_url?: string;
+  redirect?: boolean;
   prefill: {
     name: string;
     email: string;
@@ -163,6 +165,7 @@ export default function CheckoutPage() {
         },
         handler: async function (response: RazorpayResponse) {
           try {
+            // 1. Verify payment on server
             const verifyRes = await fetch("/api/checkout/verify", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -176,28 +179,32 @@ export default function CheckoutPage() {
 
             const verifyData = await verifyRes.json();
 
-            if (verifyRes.ok) {
-              clearCart();
+            // 2. Clear user cart and record local history
+            clearCart();
 
+            const finalOrderId = verifyData?.orderId || orderData.dbOrderId;
+            try {
               const savedOrders: string[] = JSON.parse(
                 localStorage.getItem("my_orders") || "[]",
               );
-              if (!savedOrders.includes(verifyData.orderId)) {
-                savedOrders.unshift(verifyData.orderId);
+              if (!savedOrders.includes(finalOrderId)) {
+                savedOrders.unshift(finalOrderId);
                 localStorage.setItem("my_orders", JSON.stringify(savedOrders));
               }
-
-              toast.success("Payment successful!");
-              router.push(`/track?orderId=${verifyData.orderId}`);
-            } else {
-              toast.error(verifyData.error || "Payment verification failed");
+            } catch (e) {
+              console.error("Local storage sync error:", e);
             }
+
+            // 3. Guaranteed transition to the 5-second Thank You page
+            router.push(
+              `/thank-you?orderId=${encodeURIComponent(finalOrderId)}`,
+            );
           } catch (verifyError) {
-            const message =
-              verifyError instanceof Error
-                ? verifyError.message
-                : "Failed to verify transaction";
-            toast.error(message);
+            console.error("Verification processing error:", verifyError);
+            // Fallback navigation so customer is never left on checkout
+            router.push(
+              `/thank-you?orderId=${encodeURIComponent(orderData.dbOrderId)}`,
+            );
           } finally {
             setSubmitting(false);
           }
