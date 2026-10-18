@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Razorpay from "razorpay";
+import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
 import { products } from "@/data/products";
@@ -11,6 +12,16 @@ interface ClientOrderItem {
   qty: number;
 }
 
+interface CustomerPayload {
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  pincode: string;
+}
+
 const razorpay = new Razorpay({
   key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
   key_secret: process.env.RAZORPAY_KEY_SECRET!,
@@ -18,7 +29,12 @@ const razorpay = new Razorpay({
 
 export async function POST(req: NextRequest) {
   try {
-    const { customer, items }: { customer: unknown; items: ClientOrderItem[] } =
+    const session = await auth();
+
+    const {
+      customer,
+      items,
+    }: { customer: CustomerPayload; items: ClientOrderItem[] } =
       await req.json();
 
     if (!customer || !items || items.length === 0) {
@@ -60,19 +76,25 @@ export async function POST(req: NextRequest) {
       verifiedSubtotal >= 1499 || verifiedSubtotal === 0 ? 0 : 99;
     const total = verifiedSubtotal + shipping;
 
-    // 1. Create order on Razorpay (amount in paise: ₹1 = 100 paise)
+    // 1. Create order on Razorpay (paise: ₹1 = 100 paise)
     const razorpayOrder = await razorpay.orders.create({
       amount: total * 100,
       currency: "INR",
       receipt: `rcpt_${Date.now()}`,
     });
 
-    // 2. Save order in MongoDB as PENDING
+    // 2. Save order in MongoDB with session user details
     await connectDB();
     const customOrderId = `CON-${Math.floor(100000 + Math.random() * 900000)}`;
 
+    const resolvedUserEmail =
+      session?.user?.email?.toLowerCase().trim() ||
+      customer.email?.toLowerCase().trim();
+
     const newOrder = await Order.create({
       orderId: customOrderId,
+      userId: session?.user?.id || undefined,
+      userEmail: resolvedUserEmail,
       customer,
       items: verifiedItems,
       subtotal: verifiedSubtotal,

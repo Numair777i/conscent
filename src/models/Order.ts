@@ -21,7 +21,9 @@ export interface IShippingAddress {
 }
 
 export interface IOrder extends Document {
-  orderId: string; // Friendly ID e.g. CON-100234
+  orderId: string;
+  userId?: string; // Added: Links to Mongo user ID
+  userEmail?: string; // Added: Links to user account email
   customer: IShippingAddress;
   items: IOrderItem[];
   subtotal: number;
@@ -46,6 +48,8 @@ export interface IOrder extends Document {
 const OrderSchema = new Schema<IOrder>(
   {
     orderId: { type: String, required: true, unique: true, index: true },
+    userId: { type: String, index: true },
+    userEmail: { type: String, index: true },
     customer: {
       fullName: { type: String, required: true },
       email: { type: String, required: true },

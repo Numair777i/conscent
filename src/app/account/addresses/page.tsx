@@ -1,52 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { ArrowLeft, Check, MapPin, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, MapPin, Loader2 } from "lucide-react";
+import { detectUserAddress } from "@/lib/location";
+import { INDIAN_STATES } from "@/app/checkout/page";
 
-export const INDIAN_STATES = [
-  "Andaman and Nicobar Islands",
-  "Andhra Pradesh",
-  "Arunachal Pradesh",
-  "Assam",
-  "Bihar",
-  "Chandigarh",
-  "Chhattisgarh",
-  "Dadra and Nagar Haveli and Daman and Diu",
-  "Delhi",
-  "Goa",
-  "Gujarat",
-  "Haryana",
-  "Himachal Pradesh",
-  "Jammu and Kashmir",
-  "Jharkhand",
-  "Karnataka",
-  "Kerala",
-  "Ladakh",
-  "Lakshadweep",
-  "Madhya Pradesh",
-  "Maharashtra",
-  "Manipur",
-  "Meghalaya",
-  "Mizoram",
-  "Nagaland",
-  "Odisha",
-  "Puducherry",
-  "Punjab",
-  "Rajasthan",
-  "Sikkim",
-  "Tamil Nadu",
-  "Telangana",
-  "Tripura",
-  "Uttar Pradesh",
-  "Uttarakhand",
-  "West Bengal",
-] as const;
-
-interface Address {
+interface SavedAddress {
   _id: string;
   type: "HOME" | "WORK" | "OTHER";
   fullName: string;
@@ -58,121 +20,168 @@ interface Address {
   isDefault: boolean;
 }
 
-const emptyForm = {
-  fullName: "",
-  phone: "",
-  address: "",
-  city: "",
-  state: "Delhi",
-  pincode: "",
-  type: "HOME" as "HOME" | "WORK" | "OTHER",
-  isDefault: false,
-};
-
-function isValidIndianPincode(pin: string): boolean {
-  const clean = pin.replace(/\D/g, "");
-  return clean.length === 6 && /^[1-9][0-9]{5}$/.test(clean);
-}
-
-function isValidIndianPhone(phone: string): boolean {
-  const digits = phone.replace(/\D/g, "");
-  return digits.length >= 10 && /^[6-9]\d{9}$/.test(digits.slice(-10));
-}
-
-export default function AddressesPage() {
-  const router = useRouter();
+export default function AccountAddressesPage() {
   const { data: session, status } = useSession();
+  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
+  const [fetchingAddresses, setFetchingAddresses] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const [checkingPin, setCheckingPin] = useState(false);
+  const [deliveryEstimate, setDeliveryEstimate] = useState<string | null>(null);
 
-  const [addresses, setAddresses] = useState<Address[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState(emptyForm);
+  // Swiggy / Amazon split address form
+  const [form, setForm] = useState({
+    type: "HOME" as "HOME" | "WORK" | "OTHER",
+    fullName: "",
+    phone: "",
+    flatHouse: "",
+    areaColony: "",
+    city: "",
+    state: "Delhi",
+    pincode: "",
+    isDefault: false,
+  });
 
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/account/login?callbackUrl=/account/addresses");
-    }
-  }, [status, router]);
-
-  const loadAddresses = useCallback(async () => {
+  const refreshAddresses = useCallback(async () => {
     try {
       const res = await fetch("/api/account/addresses");
       const data = await res.json();
       if (res.ok && data.addresses) {
         setAddresses(data.addresses);
       }
-    } catch {
-      toast.error("Failed to load saved addresses");
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      console.error("Failed to load addresses:", err);
     }
   }, []);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
-
     let isMounted = true;
-    async function fetchData() {
+
+    async function loadInitial() {
+      setFetchingAddresses(true);
       try {
         const res = await fetch("/api/account/addresses");
         const data = await res.json();
         if (isMounted && res.ok && data.addresses) {
           setAddresses(data.addresses);
         }
-      } catch {
-        if (isMounted) toast.error("Failed to load saved addresses");
+      } catch (err) {
+        console.error("Failed to load addresses:", err);
       } finally {
-        if (isMounted) setLoading(false);
+        if (isMounted) {
+          setFetchingAddresses(false);
+        }
       }
     }
 
-    fetchData();
+    if (status === "authenticated") {
+      loadInitial();
+    }
+
     return () => {
       isMounted = false;
     };
   }, [status]);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const loading = status === "loading" || fetchingAddresses;
 
-    const cleanPin = form.pincode.replace(/\D/g, "");
-    const cleanPhone = form.phone.replace(/\D/g, "").slice(-10);
+  const lookupPincode = async (rawPin: string) => {
+    if (rawPin.length === 6 && !rawPin.startsWith("0")) {
+      setCheckingPin(true);
+      try {
+        const res = await fetch(
+          `https://api.postalpincode.in/pincode/${rawPin}`,
+        );
+        const data = await res.json();
 
-    if (!isValidIndianPincode(cleanPin)) {
-      toast.error("Please enter a valid 6-digit Indian PIN code (e.g. 110025)");
-      return;
+        if (
+          data &&
+          data[0]?.Status === "Success" &&
+          data[0]?.PostOffice?.length
+        ) {
+          const po = data[0].PostOffice[0];
+          const matchedCity = po.District || po.Block || po.Name || "";
+          const matchedState = po.State || "";
+
+          setForm((prev) => ({
+            ...prev,
+            city: matchedCity,
+            state: matchedState || prev.state,
+          }));
+
+          const cityLower = matchedCity.toLowerCase();
+          const stateLower = matchedState.toLowerCase();
+
+          const isDelhiNCR =
+            stateLower === "delhi" ||
+            ["gurgaon", "gurugram", "noida", "faridabad", "ghaziabad"].some(
+              (d) => cityLower.includes(d),
+            );
+
+          const isMetro = [
+            "mumbai",
+            "bengaluru",
+            "bangalore",
+            "kolkata",
+            "chennai",
+            "hyderabad",
+            "pune",
+            "ahmedabad",
+          ].some((m) => cityLower.includes(m));
+
+          const estimate = isDelhiNCR
+            ? "1–2 business days"
+            : isMetro
+              ? "3–4 business days"
+              : "4–6 business days";
+
+          setDeliveryEstimate(estimate);
+          toast.success(`Verified: ${matchedCity}, ${matchedState}`);
+        } else {
+          setDeliveryEstimate("4–6 business days");
+        }
+      } catch {
+        setDeliveryEstimate("4–6 business days");
+      } finally {
+        setCheckingPin(false);
+      }
+    } else {
+      setDeliveryEstimate(null);
     }
+  };
 
-    if (!isValidIndianPhone(cleanPhone)) {
-      toast.error("Please enter a valid 10-digit Indian mobile number");
-      return;
-    }
+  const handlePincodeChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const rawPin = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setForm((prev) => ({ ...prev, pincode: rawPin }));
+    await lookupPincode(rawPin);
+  };
 
-    setSaving(true);
+  const handleAutoDetect = async () => {
+    setDetecting(true);
     try {
-      const res = await fetch("/api/account/addresses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          phone: cleanPhone,
-          pincode: cleanPin,
-        }),
-      });
+      const loc = await detectUserAddress();
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save address");
+      setForm((prev) => ({
+        ...prev,
+        areaColony: loc.area || loc.address || prev.areaColony,
+        city: loc.city || prev.city,
+        state: loc.state || prev.state,
+        pincode: loc.pincode || prev.pincode,
+      }));
 
-      toast.success("Address added successfully");
-      setShowAddModal(false);
-      setForm(emptyForm);
-      await loadAddresses();
+      if (loc.pincode && loc.pincode.length === 6) {
+        await lookupPincode(loc.pincode);
+      }
+
+      toast.success("Area detected! Now enter your House / Flat number.");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Error saving address";
+      const msg = err instanceof Error ? err.message : "Location lookup failed";
       toast.error(msg);
     } finally {
-      setSaving(false);
+      setDetecting(false);
     }
   };
 
@@ -181,140 +190,223 @@ export default function AddressesPage() {
       const res = await fetch(`/api/account/addresses?id=${id}`, {
         method: "DELETE",
       });
-
-      if (!res.ok) throw new Error("Failed to delete address");
-
-      toast.success("Address removed");
-      setAddresses((prev) => prev.filter((a) => a._id !== id));
+      if (res.ok) {
+        toast.success("Address removed");
+        setAddresses((prev) => prev.filter((a) => a._id !== id));
+      } else {
+        toast.error("Failed to delete address");
+      }
     } catch {
-      toast.error("Failed to delete address");
+      toast.error("Error deleting address");
     }
   };
 
-  if (status === "loading" || loading) {
-    return (
-      <div className="mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center px-4">
-        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground animate-pulse">
-          Loading addresses...
-        </p>
-      </div>
-    );
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const cleanPin = form.pincode.replace(/\D/g, "").slice(0, 6);
+    const cleanPhone = form.phone.replace(/\D/g, "").slice(-10);
+
+    if (cleanPin.length !== 6 || cleanPin.startsWith("0")) {
+      toast.error("Please enter a valid 6-digit Indian PIN code");
+      return;
+    }
+
+    if (cleanPhone.length !== 10) {
+      toast.error("Please enter a valid 10-digit mobile number");
+      return;
+    }
+
+    if (!form.flatHouse.trim()) {
+      toast.error("Please enter Flat, House No., or Building details");
+      return;
+    }
+
+    // Combine split fields for database
+    const combinedAddress = [form.flatHouse.trim(), form.areaColony.trim()]
+      .filter(Boolean)
+      .join(", ");
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/account/addresses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: form.fullName,
+          phone: cleanPhone,
+          address: combinedAddress,
+          city: form.city,
+          state: form.state,
+          pincode: cleanPin,
+          type: form.type,
+          isDefault: form.isDefault,
+        }),
+      });
+
+      if (res.ok) {
+        toast.success("Address added successfully");
+        setModalOpen(false);
+        setForm({
+          type: "HOME",
+          fullName: session?.user?.name || "",
+          phone: "",
+          flatHouse: "",
+          areaColony: "",
+          city: "",
+          state: "Delhi",
+          pincode: "",
+          isDefault: false,
+        });
+        setDeliveryEstimate(null);
+        await refreshAddresses();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || "Failed to save address");
+      }
+    } catch {
+      toast.error("Error saving address");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-12 space-y-8">
+    <div className="mx-auto w-full max-w-[1400px] px-4 py-12 sm:px-6">
+      <Link
+        href="/account"
+        className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-muted-foreground hover:text-foreground mb-6"
+      >
+        <ArrowLeft className="size-3.5" /> Back to Account
+      </Link>
+
       <div className="flex items-center justify-between border-b border-border pb-6">
         <div>
-          <Link
-            href="/account"
-            className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground transition mb-2 cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Account
-          </Link>
-          <h1 className="font-display text-3xl tracking-wide uppercase">
-            Saved Addresses
+          <h1 className="text-4xl sm:text-6xl font-display uppercase tracking-wide">
+            Saved <span className="text-brand">Addresses</span>
           </h1>
+          <p className="text-xs text-muted-foreground tracking-wider uppercase mt-1">
+            Manage your delivery locations for 1-click checkout
+          </p>
         </div>
 
         <button
           type="button"
-          onClick={() => setShowAddModal(true)}
-          className="cursor-pointer bg-brand text-brand-foreground px-4 py-2.5 text-xs font-bold tracking-widest uppercase flex items-center gap-1.5 hover:opacity-90 transition"
+          onClick={() => {
+            setForm((prev) => ({
+              ...prev,
+              fullName: prev.fullName || session?.user?.name || "",
+            }));
+            setModalOpen(true);
+          }}
+          className="bg-brand text-brand-foreground px-6 py-3 text-xs font-bold tracking-[0.2em] uppercase hover:opacity-90 flex items-center gap-2 cursor-pointer transition"
         >
-          <Plus className="w-4 h-4" /> Add New
+          <Plus className="size-4" /> Add New
         </button>
       </div>
 
-      {addresses.length === 0 ? (
-        <div className="border border-border p-12 text-center bg-card rounded-lg">
-          <MapPin className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm tracking-wider uppercase font-semibold">
-            No saved addresses yet
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            Add your primary shipping destination for 1-click checkout.
+      {loading ? (
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-12 animate-pulse">
+          Loading addresses…
+        </p>
+      ) : addresses.length === 0 ? (
+        <div className="border border-border p-12 text-center mt-10">
+          <p className="text-sm tracking-widest uppercase text-muted-foreground">
+            No saved addresses found
           </p>
           <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            className="cursor-pointer bg-foreground text-background px-6 py-2.5 text-xs font-bold tracking-widest uppercase mt-5 hover:opacity-90 transition"
+            onClick={() => {
+              setForm((prev) => ({
+                ...prev,
+                fullName: prev.fullName || session?.user?.name || "",
+              }));
+              setModalOpen(true);
+            }}
+            className="mt-4 text-xs font-bold uppercase tracking-widest text-brand hover:underline"
           >
-            Add Address
+            Add your first address
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {addresses.map((addr) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+          {addresses.map((a) => (
             <div
-              key={addr._id}
-              className={`p-5 border rounded-lg bg-card space-y-2 relative transition ${
-                addr.isDefault
-                  ? "border-brand ring-1 ring-brand"
-                  : "border-border"
+              key={a._id}
+              className={`border p-6 relative flex flex-col justify-between ${
+                a.isDefault
+                  ? "border-brand bg-brand/5 ring-1 ring-brand"
+                  : "border-border bg-card"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold tracking-widest uppercase bg-ink text-background px-2 py-0.5 rounded">
-                  {addr.type}
-                </span>
-
-                <div className="flex items-center gap-2">
-                  {addr.isDefault && (
-                    <span className="text-brand flex items-center gap-1 text-[11px] font-bold tracking-wider uppercase">
-                      <Check className="w-3.5 h-3.5" /> Default
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-[10px] font-bold tracking-[0.2em] uppercase bg-ink text-background px-2.5 py-1">
+                    {a.type}
+                  </span>
+                  {a.isDefault && (
+                    <span className="text-[10px] font-bold tracking-widest uppercase text-brand">
+                      Default
                     </span>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(addr._id)}
-                    className="cursor-pointer text-muted-foreground hover:text-destructive p-1 transition"
-                    aria-label="Delete address"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
                 </div>
+                <h3 className="text-sm font-bold uppercase tracking-wider">
+                  {a.fullName}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                  {a.address}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {a.city}, {a.state} —{" "}
+                  <span className="font-mono">{a.pincode}</span>
+                </p>
+                <p className="text-xs font-mono text-muted-foreground mt-3">
+                  +91 {a.phone}
+                </p>
               </div>
 
-              <p className="text-sm font-bold uppercase tracking-wider">
-                {addr.fullName}
-              </p>
-              <p className="text-xs text-muted-foreground">{addr.address}</p>
-              <p className="text-xs text-muted-foreground">
-                {addr.city}, {addr.state} — {addr.pincode}
-              </p>
-              <p className="text-xs font-mono text-muted-foreground pt-1">
-                +91 {addr.phone}
-              </p>
+              <div className="mt-6 pt-4 border-t border-border/50 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => handleDelete(a._id)}
+                  className="text-muted-foreground hover:text-brand cursor-pointer p-1 transition"
+                  title="Delete address"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Add Address Modal with State Dropdown and Reliable PIN Validation */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <div className="bg-card border border-border p-6 sm:p-8 rounded-lg max-w-lg w-full space-y-5">
-            <div className="flex items-center justify-between border-b border-border pb-3">
-              <h2 className="text-xl font-display uppercase tracking-wider">
+      {/* Add New Address Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="border border-border bg-background w-full max-w-lg p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border pb-4 mb-6">
+              <h2 className="text-xl font-display uppercase tracking-wide">
                 Add New Address
               </h2>
               <button
                 type="button"
-                onClick={() => setShowAddModal(false)}
-                className="cursor-pointer text-muted-foreground hover:text-foreground text-xs uppercase tracking-widest"
+                onClick={() => setModalOpen(false)}
+                className="text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 Cancel
               </button>
             </div>
 
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="flex gap-2">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-[11px] font-bold tracking-widest uppercase text-muted-foreground">
+                  Tag As:
+                </span>
                 {(["HOME", "WORK", "OTHER"] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
                     onClick={() => setForm({ ...form, type: t })}
-                    className={`cursor-pointer px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase border transition ${
+                    className={`px-3 py-1 text-[10px] font-bold tracking-widest uppercase border transition ${
                       form.type === t
                         ? "bg-brand text-brand-foreground border-brand"
                         : "border-border text-muted-foreground hover:border-foreground"
@@ -326,9 +418,9 @@ export default function AddressesPage() {
               </div>
 
               <div>
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block mb-1">
+                <span className="text-[11px] font-bold tracking-widest uppercase">
                   Full Name
-                </label>
+                </span>
                 <input
                   required
                   type="text"
@@ -336,15 +428,15 @@ export default function AddressesPage() {
                   onChange={(e) =>
                     setForm({ ...form, fullName: e.target.value })
                   }
-                  className="w-full border border-border bg-background px-3 py-2 text-sm rounded outline-none focus:border-foreground"
                   placeholder="Receiver's name"
+                  className="border-input focus:border-brand mt-1.5 w-full border bg-transparent px-4 py-2.5 text-sm outline-none"
                 />
               </div>
 
               <div>
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block mb-1">
+                <span className="text-[11px] font-bold tracking-widest uppercase">
                   Mobile Number (10 digits)
-                </label>
+                </span>
                 <input
                   required
                   type="tel"
@@ -356,56 +448,88 @@ export default function AddressesPage() {
                       phone: e.target.value.replace(/\D/g, "").slice(0, 10),
                     })
                   }
-                  className="w-full border border-border bg-background px-3 py-2 text-sm rounded outline-none focus:border-foreground"
-                  placeholder="7982846176"
+                  placeholder="0123456789"
+                  className="border-input focus:border-brand mt-1.5 w-full border bg-transparent px-4 py-2.5 text-sm outline-none"
                 />
               </div>
 
+              {/* PIN Code & On-Demand Auto-Detect Button */}
               <div>
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block mb-1">
-                  Street Address / Flat / Floor
-                </label>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold tracking-widest uppercase">
+                    PIN Code (6 digits)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleAutoDetect}
+                    disabled={detecting}
+                    className="text-[10px] font-bold uppercase tracking-wider text-brand hover:opacity-80 flex items-center gap-1 cursor-pointer disabled:opacity-50 transition"
+                  >
+                    {detecting ? (
+                      <>
+                        <Loader2 className="size-3 animate-spin" /> Detecting…
+                      </>
+                    ) : (
+                      <>
+                        <MapPin className="size-3" /> Auto-Detect Area
+                      </>
+                    )}
+                  </button>
+                </div>
                 <input
                   required
                   type="text"
-                  value={form.address}
-                  onChange={(e) =>
-                    setForm({ ...form, address: e.target.value })
-                  }
-                  className="w-full border border-border bg-background px-3 py-2 text-sm rounded outline-none focus:border-foreground"
-                  placeholder="House no., Building name, Street"
+                  maxLength={6}
+                  value={form.pincode}
+                  onChange={handlePincodeChange}
+                  placeholder="110025"
+                  className="border-input focus:border-brand mt-1.5 w-full border bg-transparent px-4 py-2.5 text-sm outline-none font-mono"
                 />
+                {checkingPin && (
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1 animate-pulse">
+                    Verifying postal route…
+                  </p>
+                )}
+                {deliveryEstimate && !checkingPin && (
+                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                    ✓ Delivery Estimate: {deliveryEstimate}
+                  </p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground block mb-1">
+                  <span className="text-[11px] font-bold tracking-widest uppercase">
                     City
-                  </label>
+                  </span>
                   <input
                     required
                     type="text"
                     value={form.city}
                     onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    className="w-full border border-border bg-background px-3 py-2 text-sm rounded outline-none focus:border-foreground"
-                    placeholder="New Delhi"
+                    placeholder="Auto-filled via PIN"
+                    className="border-input focus:border-brand mt-1.5 w-full border bg-transparent px-4 py-2.5 text-sm outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="text-[10px] uppercase tracking-widest text-muted-foreground block mb-1">
+                  <span className="text-[11px] font-bold tracking-widest uppercase">
                     State
-                  </label>
+                  </span>
                   <select
                     required
                     value={form.state}
                     onChange={(e) =>
                       setForm({ ...form, state: e.target.value })
                     }
-                    className="w-full border border-border bg-background px-3 py-2 text-sm rounded outline-none focus:border-foreground cursor-pointer"
+                    className="border-input focus:border-brand mt-1.5 w-full border bg-card text-foreground px-4 py-2.5 text-sm outline-none cursor-pointer"
                   >
                     {INDIAN_STATES.map((st) => (
-                      <option key={st} value={st}>
+                      <option
+                        key={st}
+                        value={st}
+                        className="bg-card text-foreground"
+                      >
                         {st}
                       </option>
                     ))}
@@ -413,27 +537,40 @@ export default function AddressesPage() {
                 </div>
               </div>
 
+              {/* Split Field 1: Flat/House/Floor (Customer Types) */}
               <div>
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block mb-1">
-                  PIN Code (6 digits)
-                </label>
+                <span className="text-[11px] font-bold tracking-widest uppercase">
+                  Flat / House No. / Building / Floor
+                </span>
                 <input
                   required
                   type="text"
-                  maxLength={6}
-                  value={form.pincode}
+                  value={form.flatHouse}
                   onChange={(e) =>
-                    setForm({
-                      ...form,
-                      pincode: e.target.value.replace(/\D/g, "").slice(0, 6),
-                    })
+                    setForm({ ...form, flatHouse: e.target.value })
                   }
-                  className="w-full border border-border bg-background px-3 py-2 text-sm rounded outline-none focus:border-foreground"
-                  placeholder="110025"
+                  placeholder="e.g. Flat 302, 3rd Floor, Al-Haram Apartment"
+                  className="border-input focus:border-brand mt-1.5 w-full border bg-transparent px-4 py-2.5 text-sm outline-none"
                 />
               </div>
 
-              <label className="flex items-center gap-2 cursor-pointer pt-1">
+              {/* Split Field 2: Area/Colony/Landmark (Auto-filled or Adjusted) */}
+              <div>
+                <span className="text-[11px] font-bold tracking-widest uppercase">
+                  Area / Sector / Locality / Landmark
+                </span>
+                <input
+                  type="text"
+                  value={form.areaColony}
+                  onChange={(e) =>
+                    setForm({ ...form, areaColony: e.target.value })
+                  }
+                  placeholder="e.g. Zakir Nagar, Main Market Road (near Jamia)"
+                  className="border-input focus:border-brand mt-1.5 w-full border bg-transparent px-4 py-2.5 text-sm outline-none"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer pt-2">
                 <input
                   type="checkbox"
                   checked={form.isDefault}
@@ -449,10 +586,10 @@ export default function AddressesPage() {
 
               <button
                 type="submit"
-                disabled={saving}
-                className="w-full bg-brand text-brand-foreground py-3 text-xs font-bold tracking-widest uppercase cursor-pointer hover:opacity-90 disabled:opacity-50 transition"
+                disabled={submitting}
+                className="bg-brand text-brand-foreground w-full py-4 text-xs font-bold tracking-[0.25em] uppercase hover:opacity-90 transition mt-4 cursor-pointer disabled:opacity-60"
               >
-                {saving ? "Saving..." : "Save Address"}
+                {submitting ? "Saving…" : "Save Address"}
               </button>
             </form>
           </div>

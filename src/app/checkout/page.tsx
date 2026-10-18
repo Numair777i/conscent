@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, MapPin, Loader2 } from "lucide-react";
 import { formatINR } from "@/data/products";
 import { cartSubtotal, useCart } from "@/lib/store/cart";
 import { useHydrated } from "@/hooks/use-hydrated";
+import { detectUserAddress } from "@/lib/location";
 
 export const INDIAN_STATES = [
   "Delhi",
@@ -121,16 +122,21 @@ export default function CheckoutPage() {
   const [addressType, setAddressType] = useState<"HOME" | "WORK" | "OTHER">(
     "HOME",
   );
+  const [checkingPin, setCheckingPin] = useState(false);
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [deliveryEstimate, setDeliveryEstimate] = useState<string | null>(null);
 
   const subtotal = cartSubtotal(items);
   const shipping = subtotal === 0 || subtotal >= 1499 ? 0 : 99;
   const total = subtotal + shipping;
 
+  // Swiggy / Amazon split address structure
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
     phone: "",
-    address: "",
+    flatHouse: "",
+    areaColony: "",
     city: "",
     state: "Delhi",
     pincode: "",
@@ -146,18 +152,20 @@ export default function CheckoutPage() {
     (addr: SavedAddress) => {
       setSelectedAddressId(addr._id);
       setFormData({
-        fullName: addr.fullName,
+        fullName: addr.fullName || "",
         email: session?.user?.email || "",
         phone: addr.phone
           ? String(addr.phone).replace(/\D/g, "").slice(-10)
           : "",
-        address: addr.address,
-        city: addr.city,
+        flatHouse: addr.address || "",
+        areaColony: "",
+        city: addr.city || "",
         state: addr.state || "Delhi",
         pincode: addr.pincode
           ? String(addr.pincode).replace(/\D/g, "").slice(0, 6)
           : "",
       });
+      setDeliveryEstimate("1–2 business days");
     },
     [session?.user?.email],
   );
@@ -205,10 +213,108 @@ export default function CheckoutPage() {
     setShowNewAddressForm(false);
   };
 
+  const lookupPincode = async (rawPin: string) => {
+    if (rawPin.length === 6 && !rawPin.startsWith("0")) {
+      setCheckingPin(true);
+      try {
+        const res = await fetch(
+          `https://api.postalpincode.in/pincode/${rawPin}`,
+        );
+        const data = await res.json();
+
+        if (
+          data &&
+          data[0]?.Status === "Success" &&
+          data[0]?.PostOffice?.length
+        ) {
+          const po = data[0].PostOffice[0];
+          const matchedCity = po.District || po.Block || po.Name || "";
+          const matchedState = po.State || "";
+
+          setFormData((prev) => ({
+            ...prev,
+            city: matchedCity,
+            state: matchedState || prev.state,
+          }));
+
+          const cityLower = matchedCity.toLowerCase();
+          const stateLower = matchedState.toLowerCase();
+
+          const isDelhiNCR =
+            stateLower === "delhi" ||
+            ["gurgaon", "gurugram", "noida", "faridabad", "ghaziabad"].some(
+              (d) => cityLower.includes(d),
+            );
+
+          const isMetro = [
+            "mumbai",
+            "bengaluru",
+            "bangalore",
+            "kolkata",
+            "chennai",
+            "hyderabad",
+            "pune",
+            "ahmedabad",
+          ].some((m) => cityLower.includes(m));
+
+          const estimate = isDelhiNCR
+            ? "1–2 business days"
+            : isMetro
+              ? "3–4 business days"
+              : "4–6 business days";
+
+          setDeliveryEstimate(estimate);
+          toast.success(`Verified: ${matchedCity}, ${matchedState}`);
+        } else {
+          setDeliveryEstimate("4–6 business days");
+        }
+      } catch {
+        setDeliveryEstimate("4–6 business days");
+      } finally {
+        setCheckingPin(false);
+      }
+    } else {
+      setDeliveryEstimate(null);
+    }
+  };
+
+  const handlePincodeChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const rawPin = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setFormData((prev) => ({ ...prev, pincode: rawPin }));
+    await lookupPincode(rawPin);
+  };
+
+  const handleAutoDetectLocation = async () => {
+    setDetectingLocation(true);
+    try {
+      const loc = await detectUserAddress();
+
+      setFormData((prev) => ({
+        ...prev,
+        areaColony: loc.area || prev.areaColony,
+        city: loc.city || prev.city,
+        state: loc.state || prev.state,
+        pincode: loc.pincode || prev.pincode,
+      }));
+
+      if (loc.pincode && loc.pincode.length === 6) {
+        await lookupPincode(loc.pincode);
+      }
+
+      toast.success("Area detected! Now enter your House / Flat number.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Location lookup failed";
+      toast.error(msg);
+    } finally {
+      setDetectingLocation(false);
+    }
+  };
+
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Clean numeric normalization
     const cleanPin = String(formData.pincode || "")
       .replace(/\D/g, "")
       .slice(0, 6);
@@ -216,7 +322,6 @@ export default function CheckoutPage() {
       .replace(/\D/g, "")
       .slice(-10);
 
-    // Validation: Exactly 6 digits, must not start with 0
     if (cleanPin.length !== 6 || cleanPin.startsWith("0")) {
       toast.error("Please enter a valid 6-digit Indian PIN code");
       return;
@@ -227,12 +332,29 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (!formData.flatHouse.trim()) {
+      toast.error("Please enter Flat, House No., or Floor details");
+      return;
+    }
+
+    // Combine split address fields for carrier & database
+    const combinedAddress = [
+      formData.flatHouse.trim(),
+      formData.areaColony.trim(),
+    ]
+      .filter(Boolean)
+      .join(", ");
+
     setSubmitting(true);
 
     const submissionData = {
-      ...formData,
+      fullName: formData.fullName,
+      email: formData.email,
       phone: cleanPhone,
       pincode: cleanPin,
+      city: formData.city,
+      state: formData.state,
+      address: combinedAddress,
     };
 
     if (showNewAddressForm && saveToAccount) {
@@ -497,22 +619,7 @@ export default function CheckoutPage() {
                           setFormData({ ...formData, fullName: e.target.value })
                         }
                         autoComplete="name"
-                        className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
-                        Email Address
-                      </span>
-                      <input
-                        required
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) =>
-                          setFormData({ ...formData, email: e.target.value })
-                        }
-                        autoComplete="email"
+                        placeholder="Receiver's name"
                         className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none"
                       />
                     </div>
@@ -535,44 +642,57 @@ export default function CheckoutPage() {
                           })
                         }
                         autoComplete="tel"
-                        placeholder="7982846176"
+                        placeholder="0123456789"
                         className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none"
                       />
                     </div>
 
+                    {/* PIN Code & On-Demand Auto Detect Button */}
                     <div>
-                      <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
-                        City
-                      </span>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
+                          PIN Code (6 digits)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleAutoDetectLocation}
+                          disabled={detectingLocation}
+                          className="cursor-pointer text-[10px] font-bold tracking-wider uppercase text-brand hover:opacity-80 flex items-center gap-1 transition disabled:opacity-50"
+                        >
+                          {detectingLocation ? (
+                            <>
+                              <Loader2 className="size-3 animate-spin" />{" "}
+                              Detecting…
+                            </>
+                          ) : (
+                            <>
+                              <MapPin className="size-3" /> Auto-Detect Area
+                            </>
+                          )}
+                        </button>
+                      </div>
                       <input
                         required
                         type="text"
-                        value={formData.city}
-                        onChange={(e) =>
-                          setFormData({ ...formData, city: e.target.value })
-                        }
-                        autoComplete="address-level2"
-                        className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none"
+                        maxLength={6}
+                        value={formData.pincode}
+                        onChange={handlePincodeChange}
+                        autoComplete="postal-code"
+                        placeholder="110025"
+                        className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none font-mono"
                       />
+                      {checkingPin && (
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1 animate-pulse">
+                          Verifying postal route…
+                        </p>
+                      )}
+                      {deliveryEstimate && !checkingPin && (
+                        <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                          ✓ Delivery Estimate: {deliveryEstimate}
+                        </p>
+                      )}
                     </div>
 
-                    <div className="sm:col-span-2">
-                      <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
-                        Street Address / Flat / Floor
-                      </span>
-                      <input
-                        required
-                        type="text"
-                        value={formData.address}
-                        onChange={(e) =>
-                          setFormData({ ...formData, address: e.target.value })
-                        }
-                        autoComplete="street-address"
-                        className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none"
-                      />
-                    </div>
-
-                    {/* State Dropdown */}
                     <div>
                       <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
                         State
@@ -597,26 +717,58 @@ export default function CheckoutPage() {
                       </select>
                     </div>
 
-                    {/* PIN Code Input */}
-                    <div>
+                    <div className="sm:col-span-2">
                       <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
-                        PIN Code (6 digits)
+                        City / District
                       </span>
                       <input
                         required
                         type="text"
-                        maxLength={6}
-                        value={formData.pincode}
+                        value={formData.city}
+                        onChange={(e) =>
+                          setFormData({ ...formData, city: e.target.value })
+                        }
+                        autoComplete="address-level2"
+                        placeholder="Auto-filled via PIN code"
+                        className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none"
+                      />
+                    </div>
+
+                    {/* Amazon/Swiggy Split Input 1: User Types Exact Apartment/House Details */}
+                    <div className="sm:col-span-2">
+                      <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
+                        Flat / House No. / Building / Floor
+                      </span>
+                      <input
+                        required
+                        type="text"
+                        value={formData.flatHouse}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
-                            pincode: e.target.value
-                              .replace(/\D/g, "")
-                              .slice(0, 6),
+                            flatHouse: e.target.value,
                           })
                         }
-                        autoComplete="postal-code"
-                        placeholder="110025"
+                        placeholder="e.g. Flat 302, 3rd Floor, Al-Haram Apartment"
+                        className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none"
+                      />
+                    </div>
+
+                    {/* Amazon/Swiggy Split Input 2: Filled by Auto-Detect, user can adjust */}
+                    <div className="sm:col-span-2">
+                      <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
+                        Area / Sector / Locality / Landmark
+                      </span>
+                      <input
+                        type="text"
+                        value={formData.areaColony}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            areaColony: e.target.value,
+                          })
+                        }
+                        placeholder="e.g. Zakir Nagar, Main Market Road (near Jamia)"
                         className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none"
                       />
                     </div>
