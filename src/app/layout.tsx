@@ -4,6 +4,7 @@ import { Bebas_Neue, Inter } from "next/font/google";
 import "./globals.css";
 import { GoogleAnalytics } from "@next/third-parties/google";
 
+import { Providers } from "@/components/Providers";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { CartDrawer } from "@/components/CartDrawer";
@@ -69,11 +70,13 @@ export default function RootLayout({
         {process.env.NEXT_PUBLIC_GA_ID && (
           <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
         )}
-        <Navbar />
-        <main className="min-h-[60vh] flex-1">{children}</main>
-        <Footer />
-        <CartDrawer />
-        <Toaster position="bottom-right" />
+        <Providers>
+          <Navbar />
+          <main className="min-h-[60vh] flex-1">{children}</main>
+          <Footer />
+          <CartDrawer />
+          <Toaster position="bottom-right" />
+        </Providers>
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"
           strategy="lazyOnload"

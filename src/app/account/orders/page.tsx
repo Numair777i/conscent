@@ -1,57 +1,82 @@
-import { auth } from "@/auth";
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import clientPromise from "@/lib/mongodb";
-import { ArrowLeft, Package, Clock, CheckCircle2, Truck } from "lucide-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  Package,
+  Clock,
+  CheckCircle2,
+  Truck,
+} from "lucide-react";
+import { formatINR } from "@/data/products";
 
 interface OrderItem {
-  id: string;
   name: string;
   size: string;
-  quantity: number;
-  price: number;
+  qty: number;
+  price?: number;
 }
 
-interface Order {
+interface OrderRecord {
   _id: string;
+  orderId: string;
   createdAt: string;
-  totalAmount: number;
-  status: "PENDING" | "PROCESSING" | "SHIPPED" | "DELIVERED";
-  razorpayPaymentId?: string;
+  total: number;
+  paymentStatus: string;
+  shippingStatus?: "ORDER_PLACED" | "PACKED" | "IN_TRANSIT" | "DELIVERED";
+  trackingNumber?: string;
   items: OrderItem[];
 }
 
-export default async function OrdersPage() {
-  const session = await auth();
+export default function AccountOrdersPage() {
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!session?.user?.id) {
-    redirect("/account/login");
-  }
+  useEffect(() => {
+    let isMounted = true;
 
-  const client = await clientPromise;
-  const db = client.db();
+    async function loadOrders() {
+      try {
+        let localSaved: string[] = [];
+        try {
+          localSaved = JSON.parse(localStorage.getItem("my_orders") || "[]");
+        } catch {
+          localSaved = [];
+        }
 
-  // Fetch orders matching this specific user
-  const rawOrders = await db
-    .collection("orders")
-    .find({ userId: session.user.id })
-    .sort({ createdAt: -1 })
-    .toArray();
+        const res = await fetch("/api/account/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ localOrderIds: localSaved }),
+        });
 
-  const orders: Order[] = rawOrders.map((doc) => ({
-    _id: doc._id.toString(),
-    createdAt: new Date(doc.createdAt).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    }),
-    totalAmount: doc.totalAmount,
-    status: doc.status || "PROCESSING",
-    razorpayPaymentId: doc.razorpayPaymentId || "COD / Prepaid",
-    items: doc.items || [],
-  }));
+        const text = await res.text();
+        let data: { orders?: OrderRecord[] } = {};
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { orders: [] };
+        }
 
-  const getStatusBadge = (status: Order["status"]) => {
+        if (isMounted && data.orders) {
+          setOrders(data.orders);
+        }
+      } catch (err) {
+        console.error("Failed to load orders:", err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadOrders();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const getStatusBadge = (status?: string) => {
     switch (status) {
       case "DELIVERED":
         return (
@@ -59,123 +84,158 @@ export default async function OrdersPage() {
             <CheckCircle2 className="w-3.5 h-3.5" /> Delivered
           </span>
         );
-      case "SHIPPED":
+      case "IN_TRANSIT":
         return (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600 bg-blue-500/10 px-2.5 py-1 rounded">
             <Truck className="w-3.5 h-3.5" /> In Transit
           </span>
         );
+      case "PACKED":
+        return (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-600 bg-purple-500/10 px-2.5 py-1 rounded">
+            <Package className="w-3.5 h-3.5" /> Packed
+          </span>
+        );
       default:
         return (
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 bg-amber-500/10 px-2.5 py-1 rounded">
-            <Clock className="w-3.5 h-3.5" /> Processing Formulation
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-brand bg-brand/10 px-2.5 py-1 rounded">
+            <Clock className="w-3.5 h-3.5" /> Order Placed
           </span>
         );
     }
   };
 
+  if (loading) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-5xl items-center justify-center px-4">
+        <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground animate-pulse">
+          Loading orders...
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-10 space-y-8">
-      <div>
+    <div className="max-w-5xl mx-auto px-4 py-12 space-y-8">
+      <div className="border-b border-border pb-6">
         <Link
           href="/account"
-          className="inline-flex items-center gap-1.5 text-xs uppercase tracking-widest text-muted-foreground hover:text-foreground mb-4 transition"
+          className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground transition mb-2 cursor-pointer"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to Account
         </Link>
         <h1 className="font-display text-3xl tracking-wide uppercase">
           Your Fragrance Orders
         </h1>
-        <p className="text-xs text-muted-foreground tracking-wider uppercase mt-1">
-          Review batch formulations, dispatch status, and purchase invoices
+        <p className="text-xs uppercase tracking-widest text-muted-foreground mt-1">
+          Review batch formulations, dispatch status, and delivery tracking
         </p>
       </div>
 
       {orders.length === 0 ? (
-        <div className="text-center py-16 border border-dashed border-border rounded-lg space-y-4">
-          <Package className="w-10 h-10 mx-auto text-muted-foreground/60" />
-          <div className="space-y-1">
-            <p className="text-base font-medium">No past orders yet</p>
-            <p className="text-xs text-muted-foreground">
-              You haven't placed any orders with CONSCENT yet.
-            </p>
-          </div>
+        <div className="border border-border p-12 text-center bg-card rounded-lg">
+          <Package className="w-8 h-8 mx-auto text-muted-foreground mb-3" />
+          <p className="text-sm tracking-wider uppercase font-semibold">
+            No past orders yet
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            You haven&apos;t placed any orders with CONSCENT yet.
+          </p>
           <Link
             href="/parfums"
-            className="inline-block bg-foreground text-background px-6 py-2.5 text-xs font-semibold uppercase tracking-widest rounded hover:opacity-90 transition mt-2"
+            className="inline-block bg-brand text-brand-foreground px-6 py-2.5 text-xs font-bold tracking-widest uppercase mt-5 hover:opacity-90 transition cursor-pointer"
           >
             Explore Extraits
           </Link>
         </div>
       ) : (
-        <div className="space-y-6">
-          {orders.map((order) => (
+        <div className="space-y-4">
+          {orders.map((ord) => (
             <div
-              key={order._id}
-              className="border border-border bg-card rounded-lg overflow-hidden shadow-sm"
+              key={ord.orderId || ord._id}
+              className="border border-border bg-card p-6 rounded-lg space-y-4"
             >
-              {/* Top Meta Bar */}
-              <div className="bg-muted/40 px-6 py-3.5 border-b border-border flex flex-wrap items-center justify-between gap-4 text-xs">
-                <div className="flex items-center gap-6">
-                  <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">
-                      Order Placed
-                    </span>
-                    <span className="font-medium text-foreground">
-                      {order.createdAt}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">
-                      Total
-                    </span>
-                    <span className="font-medium text-foreground">
-                      ₹{order.totalAmount.toLocaleString("en-IN")}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground block text-[10px] uppercase tracking-wider">
-                      Order Ref
-                    </span>
-                    <span className="font-mono text-muted-foreground">
-                      #{order._id.slice(-8).toUpperCase()}
-                    </span>
-                  </div>
+              <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-4">
+                <div>
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground block">
+                    Order ID
+                  </span>
+                  <p className="font-mono text-sm font-bold">{ord.orderId}</p>
                 </div>
 
-                <div>{getStatusBadge(order.status)}</div>
+                <div>
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground block">
+                    Date Placed
+                  </span>
+                  <p className="text-xs">
+                    {new Date(ord.createdAt).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </p>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground block">
+                    Total
+                  </span>
+                  <p className="text-sm font-bold">{formatINR(ord.total)}</p>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground block mb-1">
+                    Status
+                  </span>
+                  {getStatusBadge(ord.shippingStatus)}
+                </div>
               </div>
 
-              {/* Items List */}
-              <div className="p-6 divide-y divide-border">
-                {order.items.map((item, idx) => (
-                  <div
-                    key={idx}
-                    className="py-4 first:pt-0 last:pb-0 flex items-center justify-between"
-                  >
-                    <div>
-                      <h3 className="font-medium text-sm text-foreground">
-                        {item.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        Bottle Size: {item.size} • Qty: {item.quantity}
-                      </p>
+              <div className="space-y-2">
+                {ord.items &&
+                  ord.items.length > 0 &&
+                  ord.items.map((it, idx) => (
+                    <div
+                      key={idx}
+                      className="flex justify-between items-center text-xs"
+                    >
+                      <div>
+                        <span className="font-bold uppercase tracking-wide">
+                          {it.name}
+                        </span>
+                        <span className="text-muted-foreground ml-2">
+                          ({it.size} × {it.qty})
+                        </span>
+                      </div>
+                      {it.price && (
+                        <span className="font-semibold">
+                          {formatINR(it.price * it.qty)}
+                        </span>
+                      )}
                     </div>
-                    <div className="text-right">
-                      <span className="font-medium text-sm">
-                        ₹{(item.price * item.quantity).toLocaleString("en-IN")}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
 
-              {/* Footer */}
-              <div className="bg-background px-6 py-3 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>Payment: {order.razorpayPaymentId}</span>
-                <span className="font-medium uppercase tracking-wider">
-                  Handcrafted Artisan Batch
+              <div className="pt-2 flex flex-wrap items-center justify-between border-t border-border/50 text-xs text-muted-foreground gap-2">
+                <span>
+                  Payment:{" "}
+                  <strong className="uppercase text-foreground">
+                    {ord.paymentStatus}
+                  </strong>
                 </span>
+                {ord.trackingNumber ? (
+                  <a
+                    href={`https://www.delhivery.com/track/package/${ord.trackingNumber}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 font-bold tracking-wider uppercase text-brand hover:underline"
+                  >
+                    Delhivery AWB: {ord.trackingNumber}{" "}
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                ) : (
+                  <span>Carrier: Delhivery Surface</span>
+                )}
               </div>
             </div>
           ))}

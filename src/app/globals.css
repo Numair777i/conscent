@@ -181,3 +181,17 @@
     transform: translateX(-50%);
   }
 }
+
+/* src/app/globals.css */
+button,
+[role="button"],
+input[type="submit"],
+input[type="button"],
+a {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled {
+  cursor: not-allowed;
+}
