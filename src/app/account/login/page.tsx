@@ -16,6 +16,24 @@ function LoginForm() {
 
   const [form, setForm] = useState({ name: "", email: "", password: "" });
 
+  // Syncs local guest orders placed before logging in
+  const syncGuestOrders = async () => {
+    try {
+      const saved = localStorage.getItem("my_orders");
+      if (!saved) return;
+      const localOrderIds = JSON.parse(saved);
+      if (Array.isArray(localOrderIds) && localOrderIds.length > 0) {
+        await fetch("/api/account/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ localOrderIds }),
+        });
+      }
+    } catch {
+      // Non-blocking sync failure
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     try {
       setGoogleLoading(true);
@@ -38,20 +56,23 @@ function LoginForm() {
           body: JSON.stringify(form),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to create account.");
+        }
 
         toast.success("Account created! Signing you in...");
       }
 
       const loginRes = await signIn("credentials", {
         redirect: false,
-        email: form.email,
+        email: form.email.toLowerCase().trim(),
         password: form.password,
       });
 
       if (loginRes?.error) {
         toast.error("Invalid email or password.");
       } else {
+        await syncGuestOrders();
         router.push(callbackUrl);
         router.refresh();
       }
@@ -65,26 +86,26 @@ function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-md space-y-6 border border-border bg-card p-8 rounded-lg shadow-sm">
+    <div className="w-full max-w-md space-y-6 border border-border bg-card p-8 sm:p-10 shadow-xs">
       <div className="text-center space-y-2">
-        <h1 className="font-display text-3xl tracking-wider uppercase">
+        <h1 className="font-heading text-3xl tracking-tight uppercase">
           {isRegister ? "Join CONSCENT" : "Welcome Back"}
         </h1>
-        <p className="text-xs tracking-wider text-muted-foreground uppercase">
+        <p className="text-xs tracking-widest text-muted-foreground uppercase">
           {isRegister
-            ? "Create an account to track orders & view history"
+            ? "Create an account to track orders & save delivery points"
             : "Sign in to access your orders and profile"}
         </p>
       </div>
 
-      {/* Google One-Click Login Button */}
+      {/* Google One-Click Login */}
       <button
         type="button"
         disabled={googleLoading || loading}
         onClick={handleGoogleSignIn}
-        className="cursor-pointer w-full flex items-center justify-center gap-3 border border-border bg-background py-2.5 px-4 text-xs font-semibold tracking-wider uppercase rounded hover:bg-neutral-50 dark:hover:bg-neutral-900 transition disabled:opacity-50"
+        className="cursor-pointer w-full flex items-center justify-center gap-3 border border-border bg-background py-3 px-4 text-xs font-bold tracking-widest uppercase hover:border-foreground transition-all disabled:opacity-50"
       >
-        <svg className="w-4 h-4" viewBox="0 0 24 24">
+        <svg className="size-4" viewBox="0 0 24 24">
           <path
             fill="#4285F4"
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -117,44 +138,47 @@ function LoginForm() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {isRegister && (
           <div>
-            <label className="text-xs uppercase tracking-wider text-muted-foreground block mb-1">
+            <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground block mb-1.5">
               Full Name
             </label>
             <input
               type="text"
               required
+              autoComplete="name"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full border border-border bg-background px-3 py-2 text-sm rounded outline-none focus:border-foreground"
+              className="w-full border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-brand"
               placeholder="Your Name"
             />
           </div>
         )}
 
         <div>
-          <label className="text-xs uppercase tracking-wider text-muted-foreground block mb-1">
+          <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground block mb-1.5">
             Email Address
           </label>
           <input
             type="email"
             required
+            autoComplete="email"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="w-full border border-border bg-background px-3 py-2 text-sm rounded outline-none focus:border-foreground"
+            className="w-full border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-brand"
             placeholder="you@domain.com"
           />
         </div>
 
         <div>
-          <label className="text-xs uppercase tracking-wider text-muted-foreground block mb-1">
+          <label className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground block mb-1.5">
             Password
           </label>
           <input
             type="password"
             required
+            autoComplete={isRegister ? "new-password" : "current-password"}
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="w-full border border-border bg-background px-3 py-2 text-sm rounded outline-none focus:border-foreground"
+            className="w-full border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-brand font-mono"
             placeholder="••••••••"
           />
         </div>
@@ -162,7 +186,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={loading || googleLoading}
-          className="w-full bg-foreground text-background py-2.5 text-xs font-semibold tracking-widest uppercase rounded hover:opacity-90 disabled:opacity-50 transition"
+          className="w-full bg-brand text-brand-foreground py-3.5 text-xs font-bold tracking-[0.2em] uppercase hover:bg-brand/90 disabled:opacity-50 transition-all cursor-pointer shadow-xs"
         >
           {loading
             ? "Processing..."
@@ -176,7 +200,7 @@ function LoginForm() {
         <button
           type="button"
           onClick={() => setIsRegister(!isRegister)}
-          className="text-xs text-muted-foreground underline hover:text-foreground"
+          className="text-xs text-muted-foreground tracking-wide underline hover:text-foreground cursor-pointer"
         >
           {isRegister
             ? "Already have an account? Sign in"
@@ -189,10 +213,12 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-[70vh] items-center justify-center px-4 py-12">
+    <div className="flex min-h-[75vh] items-center justify-center px-4 py-16">
       <Suspense
         fallback={
-          <div className="text-xs tracking-widest uppercase">Loading...</div>
+          <div className="text-xs uppercase tracking-[0.3em] text-muted-foreground animate-pulse">
+            Loading...
+          </div>
         }
       >
         <LoginForm />

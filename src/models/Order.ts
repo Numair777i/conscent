@@ -20,25 +20,31 @@ export interface IShippingAddress {
   pincode: string;
 }
 
+export type PaymentStatus = "PENDING" | "PAID" | "FAILED";
+export type PaymentMethod = "RAZORPAY_ONLINE" | "COD";
+export type ShippingStatus =
+  | "ORDER_PLACED"
+  | "PACKED"
+  | "IN_TRANSIT"
+  | "OUT_FOR_DELIVERY"
+  | "DELIVERED"
+  | "CANCELLED"
+  | "RTO";
+
 export interface IOrder extends Document {
   orderId: string;
-  userId?: string; // Added: Links to Mongo user ID
-  userEmail?: string; // Added: Links to user account email
+  userId?: string;
+  userEmail?: string;
   customer: IShippingAddress;
   items: IOrderItem[];
   subtotal: number;
   shipping: number;
   total: number;
-  paymentStatus: "PENDING" | "PAID" | "FAILED";
-  paymentMethod: "RAZORPAY_ONLINE" | "COD";
+  paymentStatus: PaymentStatus;
+  paymentMethod: PaymentMethod;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
-  shippingStatus:
-    | "ORDER_PLACED"
-    | "PACKED"
-    | "IN_TRANSIT"
-    | "OUT_FOR_DELIVERY"
-    | "DELIVERED";
+  shippingStatus: ShippingStatus;
   trackingNumber?: string;
   carrier: string;
   createdAt: Date;
@@ -47,7 +53,11 @@ export interface IOrder extends Document {
 
 const OrderSchema = new Schema<IOrder>(
   {
-    orderId: { type: String, required: true, unique: true, index: true },
+    orderId: {
+      type: String,
+      required: true,
+      unique: true, // Automatically creates a unique index, no need for index: true
+    },
     userId: { type: String, index: true },
     userEmail: { type: String, index: true },
     customer: {
@@ -77,13 +87,14 @@ const OrderSchema = new Schema<IOrder>(
       type: String,
       enum: ["PENDING", "PAID", "FAILED"],
       default: "PENDING",
+      index: true,
     },
     paymentMethod: {
       type: String,
       enum: ["RAZORPAY_ONLINE", "COD"],
       default: "RAZORPAY_ONLINE",
     },
-    razorpayOrderId: { type: String },
+    razorpayOrderId: { type: String, index: true },
     razorpayPaymentId: { type: String },
     shippingStatus: {
       type: String,
@@ -93,14 +104,21 @@ const OrderSchema = new Schema<IOrder>(
         "IN_TRANSIT",
         "OUT_FOR_DELIVERY",
         "DELIVERED",
+        "CANCELLED",
+        "RTO",
       ],
       default: "ORDER_PLACED",
     },
-    trackingNumber: { type: String },
+    trackingNumber: { type: String, index: true },
     carrier: { type: String, default: "Delhivery Surface" },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+  },
 );
+
+// Compound index for fast account order history queries
+OrderSchema.index({ userEmail: 1, createdAt: -1 });
 
 export const Order: Model<IOrder> =
   mongoose.models.Order || mongoose.model<IOrder>("Order", OrderSchema);

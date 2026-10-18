@@ -1,24 +1,34 @@
 "use client";
 
+import { useState } from "react";
 import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
-import { useState } from "react";
+import { LogOut, Loader2 } from "lucide-react";
 
-export function SignOutButton() {
+interface SignOutButtonProps {
+  className?: string;
+  redirectTo?: string;
+}
+
+export function SignOutButton({
+  className = "",
+  redirectTo = "/",
+}: SignOutButtonProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSignOut = async () => {
+    if (isLoading) return;
+
     try {
-      setLoading(true);
-      await signOut({ redirect: false, callbackUrl: "/" });
-      router.push("/");
+      setIsLoading(true);
+      await signOut({ redirect: false });
+      router.push(redirectTo);
       router.refresh();
     } catch (error) {
-      console.error("Sign out error:", error);
+      console.error("Sign-out error:", error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -26,11 +36,16 @@ export function SignOutButton() {
     <button
       type="button"
       onClick={handleSignOut}
-      disabled={loading}
-      className="cursor-pointer flex items-center gap-1.5 text-xs uppercase tracking-wider text-destructive hover:underline disabled:opacity-50"
+      disabled={isLoading}
+      aria-label="Sign out of account"
+      className={`inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-destructive hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
     >
-      <LogOut className="w-3.5 h-3.5" />
-      {loading ? "Signing Out..." : "Sign Out"}
+      {isLoading ? (
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+      ) : (
+        <LogOut className="w-3.5 h-3.5" />
+      )}
+      <span>{isLoading ? "Signing Out..." : "Sign Out"}</span>
     </button>
   );
 }

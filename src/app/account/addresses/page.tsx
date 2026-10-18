@@ -4,9 +4,47 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { Plus, Trash2, ArrowLeft, MapPin, Loader2 } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, MapPin, Loader2, Edit2 } from "lucide-react";
 import { detectUserAddress } from "@/lib/location";
-import { INDIAN_STATES } from "@/app/checkout/page";
+
+export const INDIAN_STATES = [
+  "Andaman and Nicobar Islands",
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chandigarh",
+  "Chhattisgarh",
+  "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jammu and Kashmir",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Ladakh",
+  "Lakshadweep",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Puducherry",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+];
 
 interface SavedAddress {
   _id: string;
@@ -25,12 +63,12 @@ export default function AccountAddressesPage() {
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [fetchingAddresses, setFetchingAddresses] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [detecting, setDetecting] = useState(false);
   const [checkingPin, setCheckingPin] = useState(false);
   const [deliveryEstimate, setDeliveryEstimate] = useState<string | null>(null);
 
-  // Swiggy / Amazon split address form
   const [form, setForm] = useState({
     type: "HOME" as "HOME" | "WORK" | "OTHER",
     fullName: "",
@@ -45,6 +83,7 @@ export default function AccountAddressesPage() {
 
   const refreshAddresses = useCallback(async () => {
     try {
+      setFetchingAddresses(true);
       const res = await fetch("/api/account/addresses");
       const data = await res.json();
       if (res.ok && data.addresses) {
@@ -52,97 +91,60 @@ export default function AccountAddressesPage() {
       }
     } catch (err) {
       console.error("Failed to load addresses:", err);
+    } finally {
+      setFetchingAddresses(false);
     }
   }, []);
 
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadInitial() {
-      setFetchingAddresses(true);
-      try {
-        const res = await fetch("/api/account/addresses");
-        const data = await res.json();
-        if (isMounted && res.ok && data.addresses) {
-          setAddresses(data.addresses);
-        }
-      } catch (err) {
-        console.error("Failed to load addresses:", err);
-      } finally {
-        if (isMounted) {
-          setFetchingAddresses(false);
-        }
-      }
-    }
+    let ignore = false;
 
     if (status === "authenticated") {
-      loadInitial();
+      (async () => {
+        try {
+          const res = await fetch("/api/account/addresses");
+          const data = await res.json();
+          if (!ignore && res.ok && data.addresses) {
+            setAddresses(data.addresses);
+          }
+        } catch (err) {
+          console.error("Failed to load addresses:", err);
+        }
+      })();
     }
 
     return () => {
-      isMounted = false;
+      ignore = true;
     };
   }, [status]);
 
   const loading = status === "loading" || fetchingAddresses;
 
+  // Use internal shipping proxy for speed, caching, and rate limiting
   const lookupPincode = async (rawPin: string) => {
     if (rawPin.length === 6 && !rawPin.startsWith("0")) {
       setCheckingPin(true);
       try {
-        const res = await fetch(
-          `https://api.postalpincode.in/pincode/${rawPin}`,
-        );
+        const res = await fetch(`/api/shipping/pincode?pin=${rawPin}`);
         const data = await res.json();
 
-        if (
-          data &&
-          data[0]?.Status === "Success" &&
-          data[0]?.PostOffice?.length
-        ) {
-          const po = data[0].PostOffice[0];
-          const matchedCity = po.District || po.Block || po.Name || "";
-          const matchedState = po.State || "";
-
-          setForm((prev) => ({
-            ...prev,
-            city: matchedCity,
-            state: matchedState || prev.state,
-          }));
-
-          const cityLower = matchedCity.toLowerCase();
-          const stateLower = matchedState.toLowerCase();
-
-          const isDelhiNCR =
-            stateLower === "delhi" ||
-            ["gurgaon", "gurugram", "noida", "faridabad", "ghaziabad"].some(
-              (d) => cityLower.includes(d),
-            );
-
-          const isMetro = [
-            "mumbai",
-            "bengaluru",
-            "bangalore",
-            "kolkata",
-            "chennai",
-            "hyderabad",
-            "pune",
-            "ahmedabad",
-          ].some((m) => cityLower.includes(m));
-
-          const estimate = isDelhiNCR
-            ? "1–2 business days"
-            : isMetro
-              ? "3–4 business days"
-              : "4–6 business days";
-
-          setDeliveryEstimate(estimate);
-          toast.success(`Verified: ${matchedCity}, ${matchedState}`);
+        if (res.ok && data.serviceable) {
+          if (data.city && data.state) {
+            setForm((prev) => ({
+              ...prev,
+              city: data.city,
+              state: data.state || prev.state,
+            }));
+            toast.success(`Verified: ${data.city}, ${data.state}`);
+          }
+          if (data.estimatedDays) {
+            setDeliveryEstimate(data.estimatedDays);
+          }
         } else {
-          setDeliveryEstimate("4–6 business days");
+          setDeliveryEstimate("3–5 business days");
         }
       } catch {
-        setDeliveryEstimate("4–6 business days");
+        setDeliveryEstimate("3–5 business days");
       } finally {
         setCheckingPin(false);
       }
@@ -185,6 +187,46 @@ export default function AccountAddressesPage() {
     }
   };
 
+  const handleOpenAdd = () => {
+    setEditingId(null);
+    setForm({
+      type: "HOME",
+      fullName: session?.user?.name || "",
+      phone: "",
+      flatHouse: "",
+      areaColony: "",
+      city: "",
+      state: "Delhi",
+      pincode: "",
+      isDefault: addresses.length === 0,
+    });
+    setDeliveryEstimate(null);
+    setModalOpen(true);
+  };
+
+  const handleOpenEdit = (addr: SavedAddress) => {
+    setEditingId(addr._id);
+    // Split address into house and area if comma-separated
+    const parts = addr.address.split(", ");
+    const flatHouse = parts[0] || "";
+    const areaColony = parts.slice(1).join(", ") || "";
+
+    setForm({
+      type: addr.type,
+      fullName: addr.fullName,
+      phone: addr.phone,
+      flatHouse,
+      areaColony,
+      city: addr.city,
+      state: addr.state,
+      pincode: addr.pincode,
+      isDefault: addr.isDefault,
+    });
+    setDeliveryEstimate(null);
+    lookupPincode(addr.pincode);
+    setModalOpen(true);
+  };
+
   const handleDelete = async (id: string) => {
     try {
       const res = await fetch(`/api/account/addresses?id=${id}`, {
@@ -222,43 +264,41 @@ export default function AccountAddressesPage() {
       return;
     }
 
-    // Combine split fields for database
     const combinedAddress = [form.flatHouse.trim(), form.areaColony.trim()]
       .filter(Boolean)
       .join(", ");
 
     setSubmitting(true);
     try {
+      const method = editingId ? "PUT" : "POST";
+      const payload: Record<string, unknown> = {
+        fullName: form.fullName.trim(),
+        phone: cleanPhone,
+        address: combinedAddress,
+        city: form.city.trim(),
+        state: form.state,
+        pincode: cleanPin,
+        type: form.type,
+        isDefault: form.isDefault,
+      };
+
+      if (editingId) {
+        payload.id = editingId;
+      }
+
       const res = await fetch("/api/account/addresses", {
-        method: "POST",
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: form.fullName,
-          phone: cleanPhone,
-          address: combinedAddress,
-          city: form.city,
-          state: form.state,
-          pincode: cleanPin,
-          type: form.type,
-          isDefault: form.isDefault,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
-        toast.success("Address added successfully");
+        toast.success(
+          editingId
+            ? "Address updated successfully"
+            : "Address added successfully",
+        );
         setModalOpen(false);
-        setForm({
-          type: "HOME",
-          fullName: session?.user?.name || "",
-          phone: "",
-          flatHouse: "",
-          areaColony: "",
-          city: "",
-          state: "Delhi",
-          pincode: "",
-          isDefault: false,
-        });
-        setDeliveryEstimate(null);
         await refreshAddresses();
       } else {
         const data = await res.json();
@@ -272,36 +312,30 @@ export default function AccountAddressesPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-4 py-12 sm:px-6">
+    <div className="mx-auto w-full max-w-[1400px] px-4 py-16 sm:px-6 space-y-10">
       <Link
         href="/account"
-        className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-muted-foreground hover:text-foreground mb-6"
+        className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="size-3.5" /> Back to Account
       </Link>
 
-      <div className="flex items-center justify-between border-b border-border pb-6">
+      <div className="flex flex-wrap items-center justify-between border-b border-border pb-6 gap-4">
         <div>
-          <h1 className="text-4xl sm:text-6xl font-display uppercase tracking-wide">
+          <h1 className="text-3xl sm:text-5xl font-heading uppercase tracking-tight">
             Saved <span className="text-brand">Addresses</span>
           </h1>
-          <p className="text-xs text-muted-foreground tracking-wider uppercase mt-1">
-            Manage your delivery locations for 1-click checkout
+          <p className="text-xs text-muted-foreground tracking-widest uppercase mt-1">
+            Manage your delivery locations for 1-click expedited checkout
           </p>
         </div>
 
         <button
           type="button"
-          onClick={() => {
-            setForm((prev) => ({
-              ...prev,
-              fullName: prev.fullName || session?.user?.name || "",
-            }));
-            setModalOpen(true);
-          }}
-          className="bg-brand text-brand-foreground px-6 py-3 text-xs font-bold tracking-[0.2em] uppercase hover:opacity-90 flex items-center gap-2 cursor-pointer transition"
+          onClick={handleOpenAdd}
+          className="bg-brand text-brand-foreground px-6 py-3.5 text-xs font-bold tracking-[0.2em] uppercase hover:bg-brand/90 flex items-center gap-2 cursor-pointer transition shadow-xs"
         >
-          <Plus className="size-4" /> Add New
+          <Plus className="size-4" /> Add New Address
         </button>
       </div>
 
@@ -310,37 +344,35 @@ export default function AccountAddressesPage() {
           Loading addresses…
         </p>
       ) : addresses.length === 0 ? (
-        <div className="border border-border p-12 text-center mt-10">
-          <p className="text-sm tracking-widest uppercase text-muted-foreground">
-            No saved addresses found
+        <div className="border border-border p-12 text-center bg-card">
+          <MapPin className="size-8 mx-auto text-muted-foreground mb-4" />
+          <p className="text-sm tracking-wider uppercase font-bold">
+            No Saved Addresses Found
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Add a shipping location to make future checkouts instantaneous.
           </p>
           <button
-            onClick={() => {
-              setForm((prev) => ({
-                ...prev,
-                fullName: prev.fullName || session?.user?.name || "",
-              }));
-              setModalOpen(true);
-            }}
-            className="mt-4 text-xs font-bold uppercase tracking-widest text-brand hover:underline"
+            onClick={handleOpenAdd}
+            className="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-brand hover:underline cursor-pointer"
           >
-            Add your first address
+            + Add Your First Address
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {addresses.map((a) => (
             <div
               key={a._id}
-              className={`border p-6 relative flex flex-col justify-between ${
+              className={`border p-6 relative flex flex-col justify-between transition-all ${
                 a.isDefault
-                  ? "border-brand bg-brand/5 ring-1 ring-brand"
+                  ? "border-brand bg-brand/5 shadow-xs"
                   : "border-border bg-card"
               }`}
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-bold tracking-[0.2em] uppercase bg-ink text-background px-2.5 py-1">
+                  <span className="text-[10px] font-bold tracking-[0.2em] uppercase bg-foreground text-background px-2.5 py-1">
                     {a.type}
                   </span>
                   {a.isDefault && (
@@ -349,7 +381,7 @@ export default function AccountAddressesPage() {
                     </span>
                   )}
                 </div>
-                <h3 className="text-sm font-bold uppercase tracking-wider">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-foreground">
                   {a.fullName}
                 </h3>
                 <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
@@ -357,18 +389,28 @@ export default function AccountAddressesPage() {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {a.city}, {a.state} —{" "}
-                  <span className="font-mono">{a.pincode}</span>
+                  <span className="font-mono text-foreground font-semibold">
+                    {a.pincode}
+                  </span>
                 </p>
                 <p className="text-xs font-mono text-muted-foreground mt-3">
                   +91 {a.phone}
                 </p>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-border/50 flex justify-end">
+              <div className="mt-6 pt-4 border-t border-border flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleOpenEdit(a)}
+                  className="text-muted-foreground hover:text-foreground cursor-pointer p-1 transition-colors flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider"
+                  title="Edit address"
+                >
+                  <Edit2 className="size-3.5" /> Edit
+                </button>
                 <button
                   type="button"
                   onClick={() => handleDelete(a._id)}
-                  className="text-muted-foreground hover:text-brand cursor-pointer p-1 transition"
+                  className="text-muted-foreground hover:text-brand cursor-pointer p-1 transition-colors"
                   title="Delete address"
                 >
                   <Trash2 className="size-4" />
@@ -379,13 +421,13 @@ export default function AccountAddressesPage() {
         </div>
       )}
 
-      {/* Add New Address Modal */}
+      {/* Add / Edit Address Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="border border-border bg-background w-full max-w-lg p-6 sm:p-8 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-xs">
+          <div className="border border-border bg-card w-full max-w-lg p-6 sm:p-8 max-h-[90vh] overflow-y-auto shadow-xl">
             <div className="flex items-center justify-between border-b border-border pb-4 mb-6">
-              <h2 className="text-xl font-display uppercase tracking-wide">
-                Add New Address
+              <h2 className="text-xl font-heading uppercase tracking-wide">
+                {editingId ? "Edit Address" : "Add New Address"}
               </h2>
               <button
                 type="button"
@@ -397,8 +439,8 @@ export default function AccountAddressesPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="flex items-center gap-3 mb-2">
-                <span className="text-[11px] font-bold tracking-widest uppercase text-muted-foreground">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[11px] font-bold tracking-widest uppercase text-muted-foreground mr-1">
                   Tag As:
                 </span>
                 {(["HOME", "WORK", "OTHER"] as const).map((t) => (
@@ -406,7 +448,7 @@ export default function AccountAddressesPage() {
                     key={t}
                     type="button"
                     onClick={() => setForm({ ...form, type: t })}
-                    className={`px-3 py-1 text-[10px] font-bold tracking-widest uppercase border transition ${
+                    className={`px-3 py-1 text-[10px] font-bold tracking-widest uppercase border transition-all cursor-pointer ${
                       form.type === t
                         ? "bg-brand text-brand-foreground border-brand"
                         : "border-border text-muted-foreground hover:border-foreground"
@@ -418,9 +460,9 @@ export default function AccountAddressesPage() {
               </div>
 
               <div>
-                <span className="text-[11px] font-bold tracking-widest uppercase">
+                <label className="text-[11px] font-bold tracking-widest uppercase block mb-1">
                   Full Name
-                </span>
+                </label>
                 <input
                   required
                   type="text"
@@ -429,14 +471,14 @@ export default function AccountAddressesPage() {
                     setForm({ ...form, fullName: e.target.value })
                   }
                   placeholder="Receiver's name"
-                  className="border-input focus:border-brand mt-1.5 w-full border bg-transparent px-4 py-2.5 text-sm outline-none"
+                  className="w-full border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-brand"
                 />
               </div>
 
               <div>
-                <span className="text-[11px] font-bold tracking-widest uppercase">
+                <label className="text-[11px] font-bold tracking-widest uppercase block mb-1">
                   Mobile Number (10 digits)
-                </span>
+                </label>
                 <input
                   required
                   type="tel"
@@ -448,22 +490,21 @@ export default function AccountAddressesPage() {
                       phone: e.target.value.replace(/\D/g, "").slice(0, 10),
                     })
                   }
-                  placeholder="0123456789"
-                  className="border-input focus:border-brand mt-1.5 w-full border bg-transparent px-4 py-2.5 text-sm outline-none"
+                  placeholder="9876543210"
+                  className="w-full border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-brand font-mono"
                 />
               </div>
 
-              {/* PIN Code & On-Demand Auto-Detect Button */}
               <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold tracking-widest uppercase">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-bold tracking-widest uppercase">
                     PIN Code (6 digits)
-                  </span>
+                  </label>
                   <button
                     type="button"
                     onClick={handleAutoDetect}
                     disabled={detecting}
-                    className="text-[10px] font-bold uppercase tracking-wider text-brand hover:opacity-80 flex items-center gap-1 cursor-pointer disabled:opacity-50 transition"
+                    className="text-[10px] font-bold uppercase tracking-wider text-brand hover:opacity-80 flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all"
                   >
                     {detecting ? (
                       <>
@@ -483,7 +524,7 @@ export default function AccountAddressesPage() {
                   value={form.pincode}
                   onChange={handlePincodeChange}
                   placeholder="110025"
-                  className="border-input focus:border-brand mt-1.5 w-full border bg-transparent px-4 py-2.5 text-sm outline-none font-mono"
+                  className="w-full border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-brand font-mono"
                 />
                 {checkingPin && (
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1 animate-pulse">
@@ -491,7 +532,7 @@ export default function AccountAddressesPage() {
                   </p>
                 )}
                 {deliveryEstimate && !checkingPin && (
-                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+                  <p className="text-[11px] font-semibold text-emerald-500 mt-1 flex items-center gap-1">
                     ✓ Delivery Estimate: {deliveryEstimate}
                   </p>
                 )}
@@ -499,37 +540,33 @@ export default function AccountAddressesPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="text-[11px] font-bold tracking-widest uppercase">
+                  <label className="text-[11px] font-bold tracking-widest uppercase block mb-1">
                     City
-                  </span>
+                  </label>
                   <input
                     required
                     type="text"
                     value={form.city}
                     onChange={(e) => setForm({ ...form, city: e.target.value })}
-                    placeholder="Auto-filled via PIN"
-                    className="border-input focus:border-brand mt-1.5 w-full border bg-transparent px-4 py-2.5 text-sm outline-none"
+                    placeholder="City"
+                    className="w-full border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-brand"
                   />
                 </div>
 
                 <div>
-                  <span className="text-[11px] font-bold tracking-widest uppercase">
+                  <label className="text-[11px] font-bold tracking-widest uppercase block mb-1">
                     State
-                  </span>
+                  </label>
                   <select
                     required
                     value={form.state}
                     onChange={(e) =>
                       setForm({ ...form, state: e.target.value })
                     }
-                    className="border-input focus:border-brand mt-1.5 w-full border bg-card text-foreground px-4 py-2.5 text-sm outline-none cursor-pointer"
+                    className="w-full border border-border bg-background text-foreground px-4 py-2.5 text-sm outline-none focus:border-brand cursor-pointer"
                   >
                     {INDIAN_STATES.map((st) => (
-                      <option
-                        key={st}
-                        value={st}
-                        className="bg-card text-foreground"
-                      >
+                      <option key={st} value={st}>
                         {st}
                       </option>
                     ))}
@@ -537,11 +574,10 @@ export default function AccountAddressesPage() {
                 </div>
               </div>
 
-              {/* Split Field 1: Flat/House/Floor (Customer Types) */}
               <div>
-                <span className="text-[11px] font-bold tracking-widest uppercase">
+                <label className="text-[11px] font-bold tracking-widest uppercase block mb-1">
                   Flat / House No. / Building / Floor
-                </span>
+                </label>
                 <input
                   required
                   type="text"
@@ -549,24 +585,23 @@ export default function AccountAddressesPage() {
                   onChange={(e) =>
                     setForm({ ...form, flatHouse: e.target.value })
                   }
-                  placeholder="e.g. Flat 302, 3rd Floor, Al-Haram Apartment"
-                  className="border-input focus:border-brand mt-1.5 w-full border bg-transparent px-4 py-2.5 text-sm outline-none"
+                  placeholder="e.g. Flat 302, 3rd Floor"
+                  className="w-full border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-brand"
                 />
               </div>
 
-              {/* Split Field 2: Area/Colony/Landmark (Auto-filled or Adjusted) */}
               <div>
-                <span className="text-[11px] font-bold tracking-widest uppercase">
+                <label className="text-[11px] font-bold tracking-widest uppercase block mb-1">
                   Area / Sector / Locality / Landmark
-                </span>
+                </label>
                 <input
                   type="text"
                   value={form.areaColony}
                   onChange={(e) =>
                     setForm({ ...form, areaColony: e.target.value })
                   }
-                  placeholder="e.g. Zakir Nagar, Main Market Road (near Jamia)"
-                  className="border-input focus:border-brand mt-1.5 w-full border bg-transparent px-4 py-2.5 text-sm outline-none"
+                  placeholder="e.g. Zakir Nagar, Main Market Road"
+                  className="w-full border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-brand"
                 />
               </div>
 
@@ -587,9 +622,13 @@ export default function AccountAddressesPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="bg-brand text-brand-foreground w-full py-4 text-xs font-bold tracking-[0.25em] uppercase hover:opacity-90 transition mt-4 cursor-pointer disabled:opacity-60"
+                className="bg-brand text-brand-foreground w-full py-4 text-xs font-bold tracking-[0.25em] uppercase hover:bg-brand/90 transition-all mt-4 cursor-pointer disabled:opacity-60 shadow-xs"
               >
-                {submitting ? "Saving…" : "Save Address"}
+                {submitting
+                  ? "Saving…"
+                  : editingId
+                    ? "Update Address"
+                    : "Save Address"}
               </button>
             </form>
           </div>

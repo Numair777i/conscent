@@ -7,18 +7,20 @@ export async function GET(req: NextRequest) {
 
     if (!pin || pin.length !== 6 || pin.startsWith("0")) {
       return NextResponse.json(
-        { error: "Invalid 6-digit Indian PIN code" },
+        { success: false, error: "Invalid 6-digit Indian PIN code" },
         { status: 400 },
       );
     }
 
-    // 1. Fetch official Postal data for City & State auto-population
+    // 1. Fetch official Postal data with 4s timeout and 24h ISR caching
     const postalRes = await fetch(
       `https://api.postalpincode.in/pincode/${pin}`,
       {
-        next: { revalidate: 86400 }, // Cache postal data for 24h
+        next: { revalidate: 86400 }, // Cache postal data for 24 hours
+        signal: AbortSignal.timeout(4000),
       },
     );
+
     const postalData = await postalRes.json();
 
     if (
@@ -28,32 +30,48 @@ export async function GET(req: NextRequest) {
     ) {
       return NextResponse.json(
         {
+          success: false,
           serviceable: false,
-          error: "PIN code not found in Indian postal registry",
+          error: "PIN code not found in postal registry",
         },
         { status: 404 },
       );
     }
 
     const firstMatch = postalData[0].PostOffice[0];
-    const city = firstMatch.District || firstMatch.Block || firstMatch.Name;
-    const state = firstMatch.State;
+    const city = (
+      firstMatch.District ||
+      firstMatch.Block ||
+      firstMatch.Name ||
+      ""
+    ).trim();
+    const state = (firstMatch.State || "").trim();
 
-    // 2. Compute Surface Express estimated delivery window based on region
+    const cityLower = city.toLowerCase();
+    const stateLower = state.toLowerCase();
+
+    // 2. Compute Surface Express delivery window based on origin (Delhi)
     const isDelhiNCR =
-      state.toLowerCase() === "delhi" ||
-      ["gurgaon", "noida", "faridabad", "ghaziabad"].some((d) =>
-        city.toLowerCase().includes(d),
-      );
+      stateLower === "delhi" ||
+      [
+        "gurgaon",
+        "gurugram",
+        "noida",
+        "greater noida",
+        "faridabad",
+        "ghaziabad",
+      ].some((d) => cityLower.includes(d));
 
     const isMetro = [
       "mumbai",
       "bengaluru",
+      "bangalore",
       "kolkata",
       "chennai",
       "hyderabad",
       "pune",
-    ].some((m) => city.toLowerCase().includes(m));
+      "ahmedabad",
+    ].some((m) => cityLower.includes(m));
 
     const estimatedDays = isDelhiNCR
       ? "1–2 business days"
@@ -62,17 +80,22 @@ export async function GET(req: NextRequest) {
         : "4–6 business days";
 
     return NextResponse.json({
+      success: true,
       serviceable: true,
+      pincode: pin,
       city,
       state,
       estimatedDays,
       carrier: "Delhivery Surface Express",
     });
   } catch (error) {
-    console.error("Pincode check failure:", error);
-    return NextResponse.json(
-      { serviceable: true, estimatedDays: "3–5 business days" },
-      { status: 200 },
-    );
+    console.error("Postal API lookup failed/timed out:", error);
+    // Graceful fallback so checkout is never blocked by upstream outages
+    return NextResponse.json({
+      success: true,
+      serviceable: true,
+      estimatedDays: "3–5 business days",
+      carrier: "Delhivery Surface Express",
+    });
   }
 }

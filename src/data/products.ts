@@ -1,4 +1,4 @@
-import type { Product } from "@/types";
+import type { Product, Variant } from "@/types";
 
 import bottle1 from "@/assets/bottle-1.jpg";
 import bottle2 from "@/assets/bottle-2.jpg";
@@ -29,9 +29,21 @@ export const products: Product[] = [
       { layer: "base", name: "Vetiver" },
     ],
     variants: [
-      { id: "p1-10", size: "10 ML", price: 699 },
-      { id: "p1-50", size: "50 ML", price: 2499, compareAt: 2999 },
-      { id: "p1-100", size: "100 ML", price: 3999, compareAt: 4799 },
+      { id: "p1-10", size: "10 ML", price: 699, inStock: true },
+      {
+        id: "p1-50",
+        size: "50 ML",
+        price: 2499,
+        compareAt: 2999,
+        inStock: true,
+      },
+      {
+        id: "p1-100",
+        size: "100 ML",
+        price: 3999,
+        compareAt: 4799,
+        inStock: true,
+      },
     ],
   },
   {
@@ -55,9 +67,9 @@ export const products: Product[] = [
       { layer: "base", name: "Vanilla" },
     ],
     variants: [
-      { id: "p2-10", size: "10 ML", price: 699 },
-      { id: "p2-50", size: "50 ML", price: 2699 },
-      { id: "p2-100", size: "100 ML", price: 4299 },
+      { id: "p2-10", size: "10 ML", price: 699, inStock: true },
+      { id: "p2-50", size: "50 ML", price: 2699, inStock: true },
+      { id: "p2-100", size: "100 ML", price: 4299, inStock: true },
     ],
   },
   {
@@ -80,9 +92,9 @@ export const products: Product[] = [
       { layer: "base", name: "Benzoin" },
     ],
     variants: [
-      { id: "p3-10", size: "10 ML", price: 649 },
-      { id: "p3-50", size: "50 ML", price: 2299 },
-      { id: "p3-100", size: "100 ML", price: 3699 },
+      { id: "p3-10", size: "10 ML", price: 649, inStock: true },
+      { id: "p3-50", size: "50 ML", price: 2299, inStock: true },
+      { id: "p3-100", size: "100 ML", price: 3699, inStock: true },
     ],
   },
   {
@@ -105,9 +117,9 @@ export const products: Product[] = [
       { layer: "base", name: "Cashmere Wood" },
     ],
     variants: [
-      { id: "p4-10", size: "10 ML", price: 599 },
-      { id: "p4-50", size: "50 ML", price: 2099 },
-      { id: "p4-100", size: "100 ML", price: 3399 },
+      { id: "p4-10", size: "10 ML", price: 599, inStock: true },
+      { id: "p4-50", size: "50 ML", price: 2099, inStock: true },
+      { id: "p4-100", size: "100 ML", price: 3399, inStock: true },
     ],
   },
   {
@@ -130,9 +142,9 @@ export const products: Product[] = [
       { layer: "base", name: "Ambroxan" },
     ],
     variants: [
-      { id: "p5-10", size: "10 ML", price: 599 },
-      { id: "p5-50", size: "50 ML", price: 2199 },
-      { id: "p5-100", size: "100 ML", price: 3499 },
+      { id: "p5-10", size: "10 ML", price: 599, inStock: true },
+      { id: "p5-50", size: "50 ML", price: 2199, inStock: true },
+      { id: "p5-100", size: "100 ML", price: 3499, inStock: true },
     ],
   },
   {
@@ -152,12 +164,38 @@ export const products: Product[] = [
       { layer: "heart", name: "Mixed Florals" },
       { layer: "base", name: "Mixed Woods" },
     ],
-    variants: [{ id: "p6-set", size: "6 x 2 ML", price: 999, compareAt: 1499 }],
+    variants: [
+      {
+        id: "p6-set",
+        size: "6 x 2 ML",
+        price: 999,
+        compareAt: 1499,
+        inStock: true,
+      },
+    ],
   },
 ];
 
-export function getProduct(slug: string) {
+/* ==========================================================================
+   CATALOG QUERY HELPERS
+   ========================================================================== */
+
+export function getProduct(slug: string): Product | undefined {
   return products.find((p) => p.slug === slug);
 }
 
-export const formatINR = (paise: number) => `₹${paise.toLocaleString("en-IN")}`;
+export function getProductById(id: string): Product | undefined {
+  return products.find((p) => p.id === id);
+}
+
+export function getAllProductSlugs(): string[] {
+  return products.map((p) => p.slug);
+}
+
+export function getVariant(
+  productId: string,
+  variantId: string,
+): Variant | undefined {
+  const product = getProductById(productId);
+  return product?.variants.find((v) => v.id === variantId);
+}

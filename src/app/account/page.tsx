@@ -1,26 +1,36 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Package, MapPin, ShieldCheck } from "lucide-react";
+import {
+  Package,
+  MapPin,
+  ShieldCheck,
+  ArrowRight,
+  LayoutDashboard,
+} from "lucide-react";
 import { SignOutButton } from "@/components/Account/SignOutButton";
 
 export default async function AccountPage() {
   const session = await auth();
 
   if (!session?.user) {
-    redirect("/account/login");
+    redirect("/account/login?callbackUrl=/account");
   }
 
+  const isAdmin =
+    session.user.email?.toLowerCase().trim() ===
+    process.env.ADMIN_EMAIL?.toLowerCase().trim();
+
   return (
-    <div className="max-w-5xl mx-auto px-4 py-12 space-y-8">
-      <div className="border-b border-border pb-6 flex items-center justify-between">
+    <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 space-y-10">
+      <div className="border-b border-border pb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl tracking-wide uppercase">
+          <h1 className="font-heading text-3xl sm:text-4xl uppercase tracking-tight">
             My Account
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">
             Logged in as{" "}
-            <span className="text-foreground font-medium">
+            <span className="text-foreground font-semibold font-mono">
               {session.user.email}
             </span>
           </p>
@@ -32,35 +42,81 @@ export default async function AccountPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Link
           href="/account/orders"
-          className="cursor-pointer p-6 border border-border bg-card rounded-lg hover:border-foreground transition group"
+          className="group cursor-pointer p-6 border border-border bg-card hover:border-foreground/60 transition-all flex flex-col justify-between"
         >
-          <Package className="w-6 h-6 mb-3 text-muted-foreground group-hover:text-foreground" />
-          <h2 className="font-medium text-base mb-1">Your Orders</h2>
-          <p className="text-xs text-muted-foreground">
-            Track active shipments, view bottle details, and review order
-            receipts.
-          </p>
+          <div>
+            <Package className="size-6 mb-4 text-muted-foreground group-hover:text-brand transition-colors" />
+            <h2 className="font-heading text-lg uppercase tracking-wide mb-1">
+              Your Orders
+            </h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Track live surface shipments, review bottle sizes, and inspect
+              receipts.
+            </p>
+          </div>
+          <div className="mt-6 flex items-center gap-1 text-[11px] font-bold tracking-widest uppercase text-brand group-hover:translate-x-1 transition-transform">
+            <span>View Orders</span>
+            <ArrowRight className="size-3" />
+          </div>
         </Link>
 
         <Link
           href="/account/addresses"
-          className="cursor-pointer p-6 border border-border bg-card rounded-lg hover:border-foreground transition group"
+          className="group cursor-pointer p-6 border border-border bg-card hover:border-foreground/60 transition-all flex flex-col justify-between"
         >
-          <MapPin className="w-6 h-6 mb-3 text-muted-foreground group-hover:text-foreground" />
-          <h2 className="font-medium text-base mb-1">Saved Addresses</h2>
-          <p className="text-xs text-muted-foreground">
-            Manage standard delivery destinations for fast one-click checkout.
-          </p>
+          <div>
+            <MapPin className="size-6 mb-4 text-muted-foreground group-hover:text-brand transition-colors" />
+            <h2 className="font-heading text-lg uppercase tracking-wide mb-1">
+              Saved Addresses
+            </h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Manage saved drop points and PIN codes for 1-click expedited
+              checkout.
+            </p>
+          </div>
+          <div className="mt-6 flex items-center gap-1 text-[11px] font-bold tracking-widest uppercase text-brand group-hover:translate-x-1 transition-transform">
+            <span>Manage Addresses</span>
+            <ArrowRight className="size-3" />
+          </div>
         </Link>
 
-        <div className="p-6 border border-border bg-card rounded-lg select-none">
-          <ShieldCheck className="w-6 h-6 mb-3 text-emerald-600 dark:text-emerald-400" />
-          <h2 className="font-medium text-base mb-1">Account Security</h2>
-          <p className="text-xs text-muted-foreground">
-            Protected via secure OAuth session token. No stored plaintext
-            passwords.
-          </p>
-        </div>
+        {isAdmin ? (
+          <Link
+            href="/admin"
+            className="group cursor-pointer p-6 border border-brand/50 bg-brand/5 hover:border-brand transition-all flex flex-col justify-between"
+          >
+            <div>
+              <LayoutDashboard className="size-6 mb-4 text-brand" />
+              <h2 className="font-heading text-lg uppercase tracking-wide mb-1 text-brand">
+                Fulfillment Hub
+              </h2>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Direct access to the store orders dashboard, AWB assignments,
+                and dispatch status.
+              </p>
+            </div>
+            <div className="mt-6 flex items-center gap-1 text-[11px] font-bold tracking-widest uppercase text-brand group-hover:translate-x-1 transition-transform">
+              <span>Admin Console</span>
+              <ArrowRight className="size-3" />
+            </div>
+          </Link>
+        ) : (
+          <div className="p-6 border border-border bg-card flex flex-col justify-between select-none">
+            <div>
+              <ShieldCheck className="size-6 mb-4 text-emerald-500" />
+              <h2 className="font-heading text-lg uppercase tracking-wide mb-1">
+                Account Security
+              </h2>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Protected via encrypted session tokens. Passwords salted with
+                bcrypt.
+              </p>
+            </div>
+            <span className="mt-6 text-[11px] font-bold tracking-widest uppercase text-emerald-500">
+              Active & Verified
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ export interface DetectedAddress {
 }
 
 export async function detectUserAddress(): Promise<DetectedAddress> {
-  if (!navigator.geolocation) {
+  if (typeof window === "undefined" || !navigator.geolocation) {
     throw new Error("Geolocation is not supported by your browser");
   }
 
@@ -17,10 +17,22 @@ export async function detectUserAddress(): Promise<DetectedAddress> {
         try {
           const { latitude, longitude } = pos.coords;
 
-          // zoom=18 forces OSM to resolve to the closest road/building level rather than an administrative sector
+          // Request reverse geocoding with explicit accept-language for Indian addresses
           const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+            {
+              headers: {
+                "Accept-Language": "en",
+              },
+            },
           );
+
+          if (!res.ok) {
+            throw new Error(
+              "Unable to retrieve location details from map provider.",
+            );
+          }
+
           const data = await res.json();
 
           if (!data || !data.address) {
@@ -29,35 +41,38 @@ export async function detectUserAddress(): Promise<DetectedAddress> {
 
           const addr = data.address;
 
-          // 1. PIN code
-          const pincode = (addr.postcode || "").replace(/\D/g, "").slice(0, 6);
+          // 1. PIN code (strictly 6 digits if available)
+          const rawPostcode = (addr.postcode || "").replace(/\D/g, "");
+          const pincode =
+            rawPostcode.length >= 6 ? rawPostcode.slice(0, 6) : rawPostcode;
 
-          // 2. Prioritize hyper-local tags over broad zones
-          const road = addr.road || addr.pedestrian || "";
-
-          // Check micro-localities first (e.g. Zakir Nagar, Batla House, Ghaffar Manzil)
+          // 2. Micro-locality & Street details
+          const road = addr.road || addr.pedestrian || addr.street || "";
           const microLocality =
             addr.residential ||
             addr.neighbourhood ||
-            addr.quarter ||
             addr.suburb ||
+            addr.quarter ||
+            addr.city_district ||
             "";
 
-          // City / District fallback
+          // 3. True City / District resolution (dynamic, no hardcoded state/city fallbacks)
           const city =
             addr.city ||
             addr.town ||
-            addr.city_district ||
+            addr.village ||
+            addr.municipality ||
+            addr.district ||
             addr.county ||
-            "South Delhi";
+            "";
 
-          const state = addr.state || "Delhi";
+          const state = addr.state || "";
 
-          // If the parsed road/microLocality is too generic or overlaps, extract tokens from display_name
-          let area = [road, microLocality].filter(Boolean).join(", ");
+          // 4. Clean Area String Construction
+          const areaParts = [road, microLocality].filter(Boolean);
+          let area = areaParts.join(", ");
 
           if (!area && data.display_name) {
-            // Take the first 2 parts of the readable address as the immediate area
             const parts = data.display_name
               .split(",")
               .map((p: string) => p.trim());
@@ -65,33 +80,45 @@ export async function detectUserAddress(): Promise<DetectedAddress> {
           }
 
           resolve({
-            area: area || microLocality,
-            address: area || microLocality,
+            area: area || city,
+            address: area || "",
             city,
             state,
             pincode,
           });
         } catch (err) {
-          reject(err);
+          reject(
+            err instanceof Error
+              ? err
+              : new Error(
+                  "Failed to auto-detect your address. Please fill manually.",
+                ),
+          );
         }
       },
       (error) => {
         if (error.code === error.PERMISSION_DENIED) {
           reject(
-            new Error("Location permission denied. Please enter manually."),
+            new Error(
+              "Location permission denied. Please enter address manually.",
+            ),
           );
         } else if (error.code === error.POSITION_UNAVAILABLE) {
           reject(
             new Error("Position unavailable. Please enter address manually."),
           );
         } else {
-          reject(new Error("Unable to acquire device location."));
+          reject(
+            new Error(
+              "Unable to acquire device location. Please enter manually.",
+            ),
+          );
         }
       },
       {
         enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 0, // Never use cached coordinates
+        timeout: 10000,
+        maximumAge: 0,
       },
     );
   });

@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { Resend } from "resend";
 import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
-import { formatINR } from "@/data/products";
+import { formatINR } from "@/lib/utils";
 
 interface OrderItem {
   name: string;
@@ -12,109 +12,178 @@ interface OrderItem {
   price: number;
 }
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || "");
 
 export async function POST(req: NextRequest) {
   try {
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature, dbOrderId } =
       await req.json();
 
-    // Verify HMAC SHA256 Signature
-    const body = `${razorpayOrderId}|${razorpayPaymentId}`;
+    if (
+      !razorpayOrderId ||
+      !razorpayPaymentId ||
+      !razorpaySignature ||
+      !dbOrderId
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Missing required verification parameters" },
+        { status: 400 },
+      );
+    }
+
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!keySecret) {
+      console.error("RAZORPAY_KEY_SECRET is not configured");
+      return NextResponse.json(
+        { success: false, error: "Payment gateway configuration error" },
+        { status: 500 },
+      );
+    }
+
+    // 1. Timing-Safe HMAC SHA256 Signature Verification
+    const payload = `${razorpayOrderId}|${razorpayPaymentId}`;
     const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
-      .update(body.toString())
+      .createHmac("sha256", keySecret)
+      .update(payload)
       .digest("hex");
 
-    if (expectedSignature !== razorpaySignature) {
+    const expectedBuffer = Buffer.from(expectedSignature, "utf-8");
+    const signatureBuffer = Buffer.from(razorpaySignature, "utf-8");
+
+    if (
+      expectedBuffer.length !== signatureBuffer.length ||
+      !crypto.timingSafeEqual(expectedBuffer, signatureBuffer)
+    ) {
+      console.warn("Invalid payment signature rejected:", {
+        dbOrderId,
+        razorpayOrderId,
+      });
       return NextResponse.json(
-        { error: "Invalid payment signature" },
+        { success: false, error: "Invalid payment signature" },
         { status: 400 },
       );
     }
 
     await connectDB();
 
-    // Generate starter surface AWB code
-    const autoAWB = `DLV${Date.now().toString().slice(-8)}`;
+    // 2. Fetch current state to check if webhook already marked it as PAID
+    const existingOrder = await Order.findOne({ orderId: dbOrderId });
 
-    const updatedOrder = await Order.findOneAndUpdate(
-      { orderId: dbOrderId },
-      {
-        paymentStatus: "PAID",
-        razorpayPaymentId,
-        shippingStatus: "ORDER_PLACED",
-        trackingNumber: autoAWB,
-      },
-      { new: true },
-    );
-
-    if (!updatedOrder) {
+    if (!existingOrder) {
       return NextResponse.json(
-        { error: "Order record not found" },
+        { success: false, error: "Order record not found" },
         { status: 404 },
       );
     }
 
-    // Send Confirmation Email via Resend
-    if (process.env.RESEND_API_KEY) {
+    const wasAlreadyPaid = existingOrder.paymentStatus === "PAID";
+    const autoAWB =
+      existingOrder.trackingNumber || `DLV${Date.now().toString().slice(-8)}`;
+
+    existingOrder.paymentStatus = "PAID";
+    existingOrder.razorpayPaymentId = razorpayPaymentId;
+    existingOrder.shippingStatus =
+      existingOrder.shippingStatus || "ORDER_PLACED";
+    existingOrder.trackingNumber = autoAWB;
+
+    const updatedOrder = await existingOrder.save();
+
+    // 3. Send Confirmation Email via Resend (only if not already sent by webhook)
+    if (
+      process.env.RESEND_API_KEY &&
+      !wasAlreadyPaid &&
+      updatedOrder.customer?.email
+    ) {
       try {
-        const itemsListHtml = updatedOrder.items
+        const itemsListHtml = (updatedOrder.items || [])
           .map(
             (i: OrderItem) =>
               `<tr>
-                <td style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>${i.name}</strong> (${i.size}) x ${i.qty}</td>
-                <td style="padding: 8px 0; border-bottom: 1px solid #eee; text-align: right;">${formatINR(i.price * i.qty)}</td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #222; color: #fff;">
+                  <strong>${i.name}</strong> (${i.size}) × ${i.qty}
+                </td>
+                <td style="padding: 10px 0; border-bottom: 1px solid #222; text-align: right; color: #fff; font-weight: bold;">
+                  ${formatINR(i.price * i.qty)}
+                </td>
               </tr>`,
           )
           .join("");
 
+        const appUrl =
+          process.env.NEXT_PUBLIC_APP_URL ||
+          "https://www.conscentfragrances.com";
+
+        const fromEmail =
+          process.env.EMAIL_FROM || "CONSCENT <orders@conscentfragrances.com>";
+
         await resend.emails.send({
-          from: "CONSCENT <onboarding@resend.dev>", // replace with your verified domain in production
-          to: updatedOrder.customer.email,
-          subject: `Order Confirmed: ${updatedOrder.orderId}`,
+          from: fromEmail,
+          to: [updatedOrder.customer.email],
+          bcc: ["conscent7@gmail.com"],
+          subject: `Order Confirmed: ${updatedOrder.orderId} | CONSCENT Fragrances`,
           html: `
-            <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 8px; color: #111;">
-              <h1 style="letter-spacing: 0.15em; font-size: 24px; text-transform: uppercase; margin-bottom: 4px;">CONSCENT</h1>
-              <p style="color: #666; font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 0;">Order Confirmation</p>
-              
-              <div style="background-color: #f9fafb; padding: 16px; border-radius: 6px; margin: 20px 0;">
-                <p style="margin: 0; font-size: 14px;"><strong>Order ID:</strong> ${updatedOrder.orderId}</p>
-                <p style="margin: 4px 0 0; font-size: 14px;"><strong>Payment ID:</strong> ${updatedOrder.razorpayPaymentId}</p>
-                <p style="margin: 4px 0 0; font-size: 14px;"><strong>Status:</strong> Order Placed (Surface Transit)</p>
-              </div>
+            <div style="background-color: #000000; color: #ffffff; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <div style="max-width: 560px; margin: 0 auto; background-color: #0a0a0a; border: 1px solid #222222; padding: 32px; border-radius: 8px;">
+                
+                <div style="border-bottom: 1px solid #222222; padding-bottom: 20px; margin-bottom: 24px;">
+                  <h1 style="font-size: 26px; letter-spacing: 0.15em; text-transform: uppercase; margin: 0; font-weight: 800; color: #ffffff;">
+                    CONS<span style="color: #e11d48;">CENT</span>
+                  </h1>
+                  <p style="margin: 6px 0 0 0; color: #888888; font-size: 13px; letter-spacing: 0.05em;">
+                    Scent you can't say no to.
+                  </p>
+                </div>
 
-              <h3 style="font-size: 16px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px;">Shipment Summary</h3>
-              <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
-                <tbody>
-                  ${itemsListHtml}
-                </tbody>
-              </table>
+                <div style="background-color: #141414; border: 1px solid #262626; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
+                  <p style="margin: 0; font-size: 14px; color: #ddd;"><strong>Order ID:</strong> ${updatedOrder.orderId}</p>
+                  <p style="margin: 6px 0 0; font-size: 14px; color: #aaa;"><strong>Payment ID:</strong> ${updatedOrder.razorpayPaymentId}</p>
+                  <p style="margin: 6px 0 0; font-size: 14px; color: #aaa;"><strong>Shipping Mode:</strong> Surface Express Cargo</p>
+                </div>
 
-              <div style="margin-top: 16px; text-align: right; font-size: 14px;">
-                <p style="margin: 4px 0;">Subtotal: <strong>${formatINR(updatedOrder.subtotal)}</strong></p>
-                <p style="margin: 4px 0;">Shipping: <strong>${updatedOrder.shipping === 0 ? "FREE" : formatINR(updatedOrder.shipping)}</strong></p>
-                <p style="margin: 8px 0; font-size: 18px; color: #e11d48;">Total Paid: <strong>${formatINR(updatedOrder.total)}</strong></p>
-              </div>
+                <p style="color: #cccccc; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0;">
+                  Hey <strong>${updatedOrder.customer.fullName}</strong>, thank you for your order. Your fragrance is being prepared and will be dispatched from our New Delhi hub within 24 to 48 business hours.
+                </p>
 
-              <div style="border-top: 1px solid #e5e7eb; margin-top: 24px; padding-top: 16px; font-size: 13px; color: #555;">
-                <p style="margin: 0;"><strong>Shipping To:</strong></p>
-                <p style="margin: 4px 0;">${updatedOrder.customer.fullName}</p>
-                <p style="margin: 0;">${updatedOrder.customer.address}, ${updatedOrder.customer.city}, ${updatedOrder.customer.state} - ${updatedOrder.customer.pincode}</p>
-                <p style="margin: 4px 0;">Phone: ${updatedOrder.customer.phone}</p>
-              </div>
+                <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; color: #888888; margin: 0 0 10px 0;">
+                  Order Details
+                </h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                  <tbody>
+                    ${itemsListHtml}
+                  </tbody>
+                </table>
 
-              <div style="text-align: center; margin-top: 32px;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/track?orderId=${updatedOrder.orderId}" 
-                   style="background-color: #000; color: #fff; text-decoration: none; padding: 12px 24px; font-size: 12px; font-weight: bold; letter-spacing: 0.15em; text-transform: uppercase; border-radius: 4px; display: inline-block;">
-                  Track Your Package
-                </a>
+                <div style="margin-top: 16px; text-align: right; font-size: 14px; color: #bbb;">
+                  <p style="margin: 4px 0;">Subtotal: <strong style="color: #fff;">${formatINR(updatedOrder.subtotal)}</strong></p>
+                  <p style="margin: 4px 0;">Shipping: <strong style="color: #fff;">${updatedOrder.shipping === 0 ? "FREE" : formatINR(updatedOrder.shipping)}</strong></p>
+                  <p style="margin: 8px 0; font-size: 18px; color: #e11d48;">Total Paid: <strong>${formatINR(updatedOrder.total)}</strong></p>
+                </div>
+
+                <div style="border-top: 1px solid #222222; margin-top: 24px; padding-top: 16px; font-size: 13px; color: #888;">
+                  <p style="margin: 0 0 4px 0; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; color: #bbb;">Shipping To:</p>
+                  <p style="margin: 0; color: #ccc;">${updatedOrder.customer.fullName}</p>
+                  <p style="margin: 2px 0; color: #ccc;">${updatedOrder.customer.address}, ${updatedOrder.customer.city}, ${updatedOrder.customer.state} — ${updatedOrder.customer.pincode}</p>
+                  <p style="margin: 2px 0; color: #ccc;">Phone: +91 ${updatedOrder.customer.phone}</p>
+                </div>
+
+                <div style="text-align: center; margin-top: 32px;">
+                  <a href="${appUrl}/track?orderId=${updatedOrder.orderId}" 
+                     style="background-color: #ffffff; color: #000000; text-decoration: none; padding: 12px 28px; font-size: 12px; font-weight: bold; letter-spacing: 0.15em; text-transform: uppercase; border-radius: 4px; display: inline-block;">
+                    Track Shipment
+                  </a>
+                </div>
+
+                <div style="border-top: 1px solid #222222; margin-top: 32px; padding-top: 16px; font-size: 11px; color: #666; text-align: center;">
+                  <p style="margin: 0 0 4px 0;">Carrier tracking number (AWB) will also be sent via SMS upon courier pickup.</p>
+                  <p style="margin: 0;">Support: <a href="mailto:conscent7@gmail.com" style="color: #e11d48; text-decoration: none;">conscent7@gmail.com</a> | +91 7982846176</p>
+                </div>
+
               </div>
             </div>
           `,
         });
       } catch (emailErr) {
-        console.error("Resend error:", emailErr);
+        console.error("Resend delivery failed in verify route:", emailErr);
       }
     }
 
@@ -127,6 +196,9 @@ export async function POST(req: NextRequest) {
     const message =
       error instanceof Error ? error.message : "Payment verification failed";
     console.error("Payment verification error:", error);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 },
+    );
   }
 }

@@ -7,23 +7,23 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import { Providers } from "@/components/Providers";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { CartDrawer } from "@/components/CartDrawer";
-import { Toaster } from "@/components/ui/sonner";
 
 const bebasNeue = Bebas_Neue({
   weight: "400",
   subsets: ["latin"],
-  variable: "--font-display",
+  variable: "--font-bebas",
+  display: "swap",
 });
 
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://conscent.in",
+    process.env.NEXT_PUBLIC_APP_URL || "https://conscentfragrances.com",
   ),
   title: {
     default: "CONSCENT — Loud Fragrance",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     title: "CONSCENT — Loud Fragrance",
     description:
       "Extrait de parfum engineered for projection. Handcrafted in India.",
-    url: "https://conscent.in",
+    url: "https://conscentfragrances.com",
     siteName: "CONSCENT",
     locale: "en_IN",
     type: "website",
@@ -65,8 +65,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${bebasNeue.variable} ${inter.variable}`}>
-      <body className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased">
+    <html
+      lang="en"
+      className={`${bebasNeue.variable} ${inter.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased selection:bg-brand selection:text-brand-foreground">
         {process.env.NEXT_PUBLIC_GA_ID && (
           <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
         )}
@@ -74,12 +78,10 @@ export default function RootLayout({
           <Navbar />
           <main className="min-h-[60vh] flex-1">{children}</main>
           <Footer />
-          <CartDrawer />
-          <Toaster position="bottom-right" />
         </Providers>
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"
-          strategy="lazyOnload"
+          strategy="afterInteractive"
         />
       </body>
     </html>

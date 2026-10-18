@@ -1,13 +1,26 @@
 import { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://conscent-psi.vercel.app";
+  const rawBaseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://conscentfragrances.com";
+  const baseUrl = rawBaseUrl.replace(/\/+\$/, "");
+
   return {
-    rules: {
-      userAgent: "*", //all crawling bots
-      allow: "/", //pages that are allowed to bots
-      disallow: ["/admin", "/api/"], //pages not to be crawled by bots
-    },
+    rules: [
+      {
+        userAgent: "*",
+        allow: "/",
+        disallow: [
+          "/api/",
+          "/admin/",
+          "/account/",
+          "/checkout",
+          "/checkout/",
+          "/track",
+          "/track/",
+        ],
+      },
+    ],
     sitemap: `${baseUrl}/sitemap.xml`,
   };
 }

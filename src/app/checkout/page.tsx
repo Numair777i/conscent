@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { Check, Plus, MapPin, Loader2 } from "lucide-react";
-import { formatINR } from "@/data/products";
+import { Check, Plus, MapPin, Loader2, ShieldCheck } from "lucide-react";
+import { formatINR } from "@/lib/utils";
 import { cartSubtotal, useCart } from "@/lib/store/cart";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { detectUserAddress } from "@/lib/location";
@@ -127,10 +128,10 @@ export default function CheckoutPage() {
   const [deliveryEstimate, setDeliveryEstimate] = useState<string | null>(null);
 
   const subtotal = cartSubtotal(items);
-  const shipping = subtotal === 0 || subtotal >= 1499 ? 0 : 99;
+  // Aligned with unified store rule: Free shipping on ₹999+
+  const shipping = subtotal === 0 || subtotal >= 999 ? 0 : 99;
   const total = subtotal + shipping;
 
-  // Swiggy / Amazon split address structure
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -216,10 +217,17 @@ export default function CheckoutPage() {
   const lookupPincode = async (rawPin: string) => {
     if (rawPin.length === 6 && !rawPin.startsWith("0")) {
       setCheckingPin(true);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
       try {
         const res = await fetch(
           `https://api.postalpincode.in/pincode/${rawPin}`,
+          {
+            signal: controller.signal,
+          },
         );
+        clearTimeout(timeoutId);
         const data = await res.json();
 
         if (
@@ -337,7 +345,6 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Combine split address fields for carrier & database
     const combinedAddress = [
       formData.flatHouse.trim(),
       formData.areaColony.trim(),
@@ -349,7 +356,7 @@ export default function CheckoutPage() {
 
     const submissionData = {
       fullName: formData.fullName,
-      email: formData.email,
+      email: formData.email || session?.user?.email || "",
       phone: cleanPhone,
       pincode: cleanPin,
       city: formData.city,
@@ -488,29 +495,29 @@ export default function CheckoutPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-12 sm:px-6">
-      <h1 className="text-7xl sm:text-8xl">
+      <h1 className="font-heading text-6xl sm:text-8xl tracking-tight">
         Check<span className="text-brand">out</span>
       </h1>
 
       {hydrated && items.length === 0 ? (
-        <div className="border-border mt-10 border p-12 text-center">
+        <div className="border-border mt-10 border p-12 text-center bg-card">
           <p className="text-muted-foreground text-sm tracking-[0.2em] uppercase">
             Your bag is empty
           </p>
           <Link
             href="/parfums"
-            className="bg-ink text-background hover:bg-brand mt-6 inline-block cursor-pointer px-8 py-4 text-xs font-bold tracking-[0.25em] uppercase transition-colors"
+            className="bg-brand text-brand-foreground hover:bg-brand/90 mt-6 inline-block cursor-pointer px-8 py-4 text-xs font-bold tracking-[0.25em] uppercase transition-colors shadow-xs"
           >
-            Shop parfums
+            Shop Parfums
           </Link>
         </div>
       ) : (
         <div className="mt-10 grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="border-border border p-6 sm:p-8">
+          <div className="border-border border p-6 sm:p-8 bg-card">
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div>
-                <h2 className="text-2xl sm:text-3xl font-display uppercase tracking-wide">
-                  Shipping Details
+                <h2 className="font-heading text-2xl sm:text-3xl uppercase tracking-wide">
+                  Shipping Address
                 </h2>
                 <p className="text-xs text-muted-foreground tracking-wider uppercase mt-0.5">
                   Logged in as {session?.user?.email}
@@ -608,9 +615,9 @@ export default function CheckoutPage() {
 
                   <div className="grid gap-5 sm:grid-cols-2">
                     <div>
-                      <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
+                      <label className="text-[11px] font-bold tracking-[0.25em] uppercase block">
                         Full Name
-                      </span>
+                      </label>
                       <input
                         required
                         type="text"
@@ -625,9 +632,9 @@ export default function CheckoutPage() {
                     </div>
 
                     <div>
-                      <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
+                      <label className="text-[11px] font-bold tracking-[0.25em] uppercase block">
                         Mobile Number
-                      </span>
+                      </label>
                       <input
                         required
                         type="tel"
@@ -642,17 +649,17 @@ export default function CheckoutPage() {
                           })
                         }
                         autoComplete="tel"
-                        placeholder="0123456789"
-                        className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none"
+                        placeholder="9876543210"
+                        className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none font-mono"
                       />
                     </div>
 
                     {/* PIN Code & On-Demand Auto Detect Button */}
                     <div>
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
+                        <label className="text-[11px] font-bold tracking-[0.25em] uppercase block">
                           PIN Code (6 digits)
-                        </span>
+                        </label>
                         <button
                           type="button"
                           onClick={handleAutoDetectLocation}
@@ -678,7 +685,7 @@ export default function CheckoutPage() {
                         value={formData.pincode}
                         onChange={handlePincodeChange}
                         autoComplete="postal-code"
-                        placeholder="110025"
+                        placeholder="110001"
                         className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none font-mono"
                       />
                       {checkingPin && (
@@ -694,9 +701,9 @@ export default function CheckoutPage() {
                     </div>
 
                     <div>
-                      <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
+                      <label className="text-[11px] font-bold tracking-[0.25em] uppercase block">
                         State
-                      </span>
+                      </label>
                       <select
                         required
                         value={formData.state}
@@ -706,11 +713,7 @@ export default function CheckoutPage() {
                         className="border-input focus:border-brand mt-2 w-full border bg-card text-foreground px-4 py-3 text-sm outline-none cursor-pointer"
                       >
                         {INDIAN_STATES.map((st) => (
-                          <option
-                            key={st}
-                            value={st}
-                            className="bg-card text-foreground"
-                          >
+                          <option key={st} value={st}>
                             {st}
                           </option>
                         ))}
@@ -718,9 +721,9 @@ export default function CheckoutPage() {
                     </div>
 
                     <div className="sm:col-span-2">
-                      <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
+                      <label className="text-[11px] font-bold tracking-[0.25em] uppercase block">
                         City / District
-                      </span>
+                      </label>
                       <input
                         required
                         type="text"
@@ -734,11 +737,10 @@ export default function CheckoutPage() {
                       />
                     </div>
 
-                    {/* Amazon/Swiggy Split Input 1: User Types Exact Apartment/House Details */}
                     <div className="sm:col-span-2">
-                      <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
+                      <label className="text-[11px] font-bold tracking-[0.25em] uppercase block">
                         Flat / House No. / Building / Floor
-                      </span>
+                      </label>
                       <input
                         required
                         type="text"
@@ -749,16 +751,15 @@ export default function CheckoutPage() {
                             flatHouse: e.target.value,
                           })
                         }
-                        placeholder="e.g. Flat 302, 3rd Floor, Al-Haram Apartment"
+                        placeholder="e.g. Flat 302, 3rd Floor"
                         className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none"
                       />
                     </div>
 
-                    {/* Amazon/Swiggy Split Input 2: Filled by Auto-Detect, user can adjust */}
                     <div className="sm:col-span-2">
-                      <span className="text-[11px] font-bold tracking-[0.25em] uppercase">
-                        Area / Sector / Locality / Landmark
-                      </span>
+                      <label className="text-[11px] font-bold tracking-[0.25em] uppercase block">
+                        Area / Sector / Landmark
+                      </label>
                       <input
                         type="text"
                         value={formData.areaColony}
@@ -768,7 +769,7 @@ export default function CheckoutPage() {
                             areaColony: e.target.value,
                           })
                         }
-                        placeholder="e.g. Zakir Nagar, Main Market Road (near Jamia)"
+                        placeholder="e.g. Connaught Place, Inner Circle"
                         className="border-input focus:border-brand mt-2 w-full border bg-transparent px-4 py-3 text-sm outline-none"
                       />
                     </div>
@@ -791,67 +792,74 @@ export default function CheckoutPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="bg-brand text-brand-foreground mt-8 w-full cursor-pointer py-5 text-xs font-bold tracking-[0.3em] uppercase transition-transform hover:-translate-y-0.5 disabled:opacity-60"
+                className="bg-brand text-brand-foreground hover:bg-brand/90 mt-8 w-full cursor-pointer py-4 text-xs font-bold tracking-[0.3em] uppercase transition-all hover:-translate-y-0.5 disabled:opacity-60 shadow-md"
               >
-                {submitting ? "Processing…" : `Pay ${formatINR(total)}`}
+                {submitting
+                  ? "Processing Transaction…"
+                  : `Pay ${formatINR(total)}`}
               </button>
-              <p className="text-muted-foreground mt-3 text-center text-[11px] tracking-[0.15em] uppercase">
-                Secure UPI · Cards · NetBanking by Razorpay
-              </p>
+              <div className="mt-4 flex items-center justify-center gap-1.5 text-muted-foreground text-[11px] tracking-[0.15em] uppercase">
+                <ShieldCheck className="size-3.5 text-brand" />
+                <span>Secure UPI · Cards · NetBanking by Razorpay</span>
+              </div>
             </form>
           </div>
 
-          <aside className="border-border h-fit border p-6 sm:p-8">
-            <h2 className="text-3xl font-display uppercase tracking-wide">
-              Order summary
+          {/* Order Summary Aside */}
+          <aside className="border-border h-fit border p-6 sm:p-8 bg-card">
+            <h2 className="font-heading text-2xl sm:text-3xl uppercase tracking-wide">
+              Order Summary
             </h2>
-            <div className="mt-6 space-y-4">
+            <div className="mt-6 space-y-4 max-h-[380px] overflow-y-auto pr-1">
               {hydrated &&
-                items.map((i) => {
-                  const itemImg =
-                    typeof i.image === "string" ? i.image : i.image.src;
-                  return (
-                    <div key={i.key} className="flex items-center gap-4">
-                      <img
-                        src={itemImg}
+                items.map((i) => (
+                  <div key={i.key} className="flex items-center gap-4">
+                    <div className="relative size-16 shrink-0 bg-muted overflow-hidden border border-border">
+                      <Image
+                        src={i.image}
                         alt={i.name}
-                        width={1008}
-                        height={1200}
-                        loading="lazy"
-                        className="bg-tile size-16 object-cover"
+                        fill
+                        sizes="64px"
+                        className="object-cover"
                       />
-                      <div className="flex-1">
-                        <p className="text-sm font-bold tracking-wide uppercase">
-                          {i.name}
-                        </p>
-                        <p className="text-muted-foreground text-[11px] tracking-[0.2em] uppercase">
-                          {i.size} × {i.qty}
-                        </p>
-                      </div>
-                      <p className="text-sm font-bold">
-                        {formatINR(i.price * i.qty)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold tracking-wide uppercase truncate">
+                        {i.name}
+                      </p>
+                      <p className="text-muted-foreground text-[11px] tracking-[0.2em] uppercase">
+                        {i.size} × {i.qty}
                       </p>
                     </div>
-                  );
-                })}
+                    <p className="text-sm font-bold font-mono">
+                      {formatINR(i.price * i.qty)}
+                    </p>
+                  </div>
+                ))}
             </div>
 
             <div className="border-border mt-6 space-y-2 border-t pt-6 text-sm">
               <div className="flex justify-between">
-                <span className="tracking-[0.15em] uppercase">Subtotal</span>
+                <span className="tracking-[0.15em] uppercase text-muted-foreground">
+                  Subtotal
+                </span>
                 <span className="font-bold">{formatINR(subtotal)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="tracking-[0.15em] uppercase">Shipping</span>
-                <span className="font-bold">
+                <span className="tracking-[0.15em] uppercase text-muted-foreground">
+                  Shipping
+                </span>
+                <span className="font-bold text-brand">
                   {shipping === 0 ? "FREE" : formatINR(shipping)}
                 </span>
               </div>
-              <div className="border-border mt-3 flex justify-between border-t pt-3">
-                <span className="text-lg font-bold tracking-[0.15em] uppercase">
+              <div className="border-border mt-4 flex justify-between border-t pt-4 items-baseline">
+                <span className="text-base font-bold tracking-[0.15em] uppercase">
                   Total
                 </span>
-                <span className="text-2xl font-bold">{formatINR(total)}</span>
+                <span className="font-heading text-3xl font-black text-foreground">
+                  {formatINR(total)}
+                </span>
               </div>
             </div>
           </aside>
