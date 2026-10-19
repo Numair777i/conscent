@@ -1,32 +1,45 @@
 import Link from "next/link";
+import { NewsletterForm } from "./NewsletterForm";
 
 export function Footer() {
-  const currentYear = 2026;
+  const currentYear = new Date().getFullYear();
 
   return (
     <footer className="bg-ink text-background mt-24 border-t border-white/5">
       <div className="mx-auto w-full max-w-[1400px] px-4 py-16 sm:px-6">
         <div className="grid gap-12 md:grid-cols-4">
-          {/* Brand Col */}
-          <div className="md:col-span-2">
+          {/* Brand & Newsletter Column */}
+          <div className="md:col-span-2 space-y-4">
             <Link href="/" className="inline-block">
               <span className="font-heading text-4xl sm:text-5xl font-black tracking-[0.15em] uppercase">
                 CONS<span className="text-brand">CENT</span>
               </span>
             </Link>
-            <p className="text-background/80 mt-4 max-w-sm text-sm font-medium tracking-wide">
+            <p className="text-background/80 max-w-sm text-sm font-medium tracking-wide">
               Scent you can&apos;t say no to.
             </p>
-            <p className="text-background/50 mt-1 max-w-sm text-xs leading-relaxed">
+            <p className="text-background/50 max-w-sm text-xs leading-relaxed">
               Handcrafted artisan extrait formulations. Formulated and
               dispatched from New Delhi, delivered nationwide.
             </p>
+
+            {/* Verified Newsletter Signup */}
+            <div className="pt-2">
+              <h5 className="text-brand text-[11px] font-bold tracking-[0.25em] uppercase">
+                Private Dispatch
+              </h5>
+              <p className="text-background/50 text-[11px] tracking-wide mt-1">
+                Receive secret batch releases, vault extraits, and member
+                pricing.
+              </p>
+              <NewsletterForm />
+            </div>
           </div>
 
           {/* Shop & Navigation */}
           <div>
             <h4 className="text-brand text-xs font-bold tracking-[0.25em] uppercase">
-              Shop & Explore
+              Shop &amp; Explore
             </h4>
             <ul className="mt-4 space-y-2.5 text-sm">
               <li>
@@ -81,7 +94,7 @@ export function Footer() {
               <li>
                 <a
                   href="tel:+917982846176"
-                  className="hover:text-brand transition-colors"
+                  className="hover:text-brand transition-colors font-mono"
                 >
                   +91 7982846176
                 </a>
@@ -99,7 +112,7 @@ export function Footer() {
         {/* Legal Policies - Mandatory for Razorpay Merchant Verification */}
         <div className="mt-12 border-t border-white/10 pt-8">
           <h4 className="text-brand text-xs tracking-[0.25em] uppercase font-bold">
-            Policy & Legal
+            Policy &amp; Legal
           </h4>
           <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-xs text-background/70">
             <li>
@@ -148,7 +161,7 @@ export function Footer() {
         {/* Copyright */}
         <div className="text-background/40 mt-10 border-t border-white/5 pt-6 text-[11px] tracking-[0.2em] uppercase flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>© {currentYear} CONSCENT Fragrances. All rights reserved.</span>
-          <span>Made in India</span>
+          <span>Formulated &amp; Handcrafted in India</span>
         </div>
       </div>
     </footer>

@@ -3,19 +3,20 @@ import crypto from "crypto";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
+import { sendTrackingUpdatedEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
 const AUTHORIZED_ADMIN_EMAIL = "conscent7@gmail.com";
 
 async function isAuthorized(req: NextRequest): Promise<boolean> {
-  // 1. Check if user is logged into their admin session
+  // 1. Authenticated session check (conscent7@gmail.com)
   const session = await auth();
   if (session?.user?.email?.toLowerCase().trim() === AUTHORIZED_ADMIN_EMAIL) {
     return true;
   }
 
-  // 2. Fallback to ADMIN_SECRET for direct curl / API requests
+  // 2. Timing-safe ADMIN_SECRET check for curl / external automation
   const envSecret = process.env.ADMIN_SECRET;
   if (!envSecret) return false;
 
@@ -85,28 +86,60 @@ export async function PATCH(req: NextRequest) {
 
     await connectDB();
 
-    const updateFields: Record<string, string> = {};
-    if (trackingNumber !== undefined)
-      updateFields.trackingNumber = trackingNumber.trim();
-    if (shippingStatus) updateFields.shippingStatus = shippingStatus.trim();
-
-    const order = await Order.findOneAndUpdate(
-      { orderId },
-      { $set: updateFields },
-      { new: true },
-    );
-
-    if (!order) {
+    // Fetch existing state to check what actually changed
+    const previousOrder = await Order.findOne({ orderId }).lean();
+    if (!previousOrder) {
       return NextResponse.json(
         { success: false, error: "Order not found" },
         { status: 404 },
       );
     }
 
+    const updateFields: Record<string, string> = {};
+    if (trackingNumber !== undefined) {
+      updateFields.trackingNumber = trackingNumber.trim();
+    }
+    if (shippingStatus) {
+      updateFields.shippingStatus = shippingStatus.trim();
+    }
+
+    const updatedOrder = await Order.findOneAndUpdate(
+      { orderId },
+      { $set: updateFields },
+      { new: true },
+    ).lean();
+
+    if (!updatedOrder) {
+      return NextResponse.json(
+        { success: false, error: "Order not found" },
+        { status: 404 },
+      );
+    }
+
+    // Trigger Resend email update if status advanced or tracking code was modified
+    const statusChanged =
+      Boolean(shippingStatus) &&
+      shippingStatus !== previousOrder.shippingStatus;
+    const awbChanged =
+      trackingNumber !== undefined &&
+      trackingNumber.trim() !== (previousOrder.trackingNumber || "");
+
+    if ((statusChanged || awbChanged) && updatedOrder.customer?.email) {
+      // Fire-and-forget: does not block the HTTP response if mail queue is slow
+      sendTrackingUpdatedEmail({
+        orderId: updatedOrder.orderId,
+        customer: updatedOrder.customer,
+        shippingStatus: updatedOrder.shippingStatus,
+        trackingNumber: updatedOrder.trackingNumber,
+      }).catch((err) => {
+        console.error("Failed to dispatch tracking email update:", err);
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: "Order updated successfully",
-      order,
+      order: updatedOrder,
     });
   } catch (error) {
     const message =
