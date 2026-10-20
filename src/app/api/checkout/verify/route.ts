@@ -88,22 +88,22 @@ export async function POST(req: NextRequest) {
 
     const updatedOrder = await existingOrder.save();
 
-    // 3. Resolve recipient email defensively without triggering no-explicit-any
-    const orderData = updatedOrder.toObject
-      ? (updatedOrder.toObject() as Record<string, unknown>)
-      : (updatedOrder as unknown as Record<string, unknown>);
+    // 3. Resolve recipient email defensively and strictly typed
+    const plainOrder = (typeof updatedOrder.toObject === "function"
+      ? updatedOrder.toObject()
+      : updatedOrder) as unknown as Record<string, unknown>;
 
     const recipientEmail =
       updatedOrder.customer?.email ||
-      (typeof orderData.customerEmail === "string"
-        ? orderData.customerEmail
+      (typeof plainOrder.customerEmail === "string"
+        ? plainOrder.customerEmail
         : "") ||
-      (typeof orderData.email === "string" ? orderData.email : "");
+      (typeof plainOrder.email === "string" ? plainOrder.email : "");
 
     const customerName =
       updatedOrder.customer?.fullName ||
-      (typeof orderData.customerName === "string"
-        ? orderData.customerName
+      (typeof plainOrder.customerName === "string"
+        ? plainOrder.customerName
         : "") ||
       "Fragrance Patron";
 
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
     } else if (!recipientEmail) {
       console.error(
         "Could not find customer email on order record:",
-        JSON.stringify(updatedOrder.customer || orderData),
+        JSON.stringify(updatedOrder.customer || plainOrder),
       );
     } else {
       try {
