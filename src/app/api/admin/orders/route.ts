@@ -178,7 +178,7 @@ export async function PATCH(req: NextRequest) {
 
                 <div style="border-top: 1px solid #222222; margin-top: 32px; padding-top: 16px; font-size: 11px; color: #666; text-align: center;">
                   <p style="margin: 0 0 4px 0;">Courier tracking scans may take up to 6–12 hours after pickup to reflect on carrier servers.</p>
-                  <p style="margin: 0;">Support: <a href="mailto:conscent7@gmail.com" style="color: #e11d48; text-decoration: none;">conscent7@gmail.com</a> | +91 7982846176</p>
+                  <p style="margin: 0;">Support: <a href="mailto:support@conscentfragrances.com" style="color: #e11d48; text-decoration: none;">support@conscentfragrances.com</a> | +91 7982846176</p>
                 </div>
 
               </div>

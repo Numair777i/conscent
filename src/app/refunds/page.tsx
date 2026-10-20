@@ -61,10 +61,10 @@ export default function CancellationRefunds() {
             <li>
               Notify us within <strong>48 hours of delivery</strong> at{" "}
               <a
-                href="mailto:conscent7@gmail.com"
+                href="mailto:support@conscentfragrances.com"
                 className="underline font-medium text-black"
               >
-                conscent7@gmail.com
+                support@conscentfragrances.com
               </a>
               .
             </li>

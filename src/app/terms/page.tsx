@@ -111,7 +111,8 @@ export default function TermsPage() {
               110025
             </p>
             <p>
-              <strong>Customer Support Email:</strong> conscent7@gmail.com
+              <strong>Customer Support Email:</strong>{" "}
+              support@conscentfragrances.com
             </p>
             <p>
               <strong>Customer Support Phone:</strong> +91 7982846176 (Mon–Sat,

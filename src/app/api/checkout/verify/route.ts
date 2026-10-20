@@ -176,23 +176,62 @@ export async function POST(req: NextRequest) {
           bcc: ["conscent7@gmail.com"],
           subject: `Order Confirmed: ${updatedOrder.orderId} | CONSCENT Fragrances`,
           html: `
-            <div style="background-color: #000000; color: #ffffff; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+            <div style="background-color: #000000; color: #ffffff; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
               <div style="max-width: 560px; margin: 0 auto; background-color: #0a0a0a; border: 1px solid #222222; padding: 32px; border-radius: 8px;">
-                <h1 style="font-size: 26px; letter-spacing: 0.15em; text-transform: uppercase; margin: 0; font-weight: 800; color: #ffffff;">
-                  CONS<span style="color: #e11d48;">CENT</span>
-                </h1>
-                <p style="margin: 6px 0 24px 0; color: #888888; font-size: 13px;">Scent you can't say no to.</p>
+                
+                <div style="border-bottom: 1px solid #222222; padding-bottom: 20px; margin-bottom: 24px;">
+                  <h1 style="font-size: 26px; letter-spacing: 0.15em; text-transform: uppercase; margin: 0; font-weight: 800; color: #ffffff;">
+                    CONS<span style="color: #e11d48;">CENT</span>
+                  </h1>
+                  <p style="margin: 6px 0 0 0; color: #888888; font-size: 13px; letter-spacing: 0.05em;">
+                    Scent you can't say no to.
+                  </p>
+                </div>
+
                 <div style="background-color: #141414; border: 1px solid #262626; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
                   <p style="margin: 0; font-size: 14px; color: #ddd;"><strong>Order ID:</strong> ${updatedOrder.orderId}</p>
                   <p style="margin: 6px 0 0; font-size: 14px; color: #aaa;"><strong>Payment ID:</strong> ${updatedOrder.razorpayPaymentId}</p>
+                  <p style="margin: 6px 0 0; font-size: 14px; color: #aaa;"><strong>Shipping Mode:</strong> Surface Express Cargo</p>
                 </div>
-                <p style="color: #ccc; font-size: 14px; line-height: 1.6;">Hey <strong>${customerName}</strong>, thank you for your order. Your fragrance is being prepared for dispatch.</p>
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 16px;">
-                  <tbody>${itemsListHtml}</tbody>
+
+                <p style="color: #cccccc; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0;">
+                  Hey <strong>${customerName}</strong>, thank you for your order. Your fragrance is being prepared and will be dispatched from our New Delhi hub within 24 to 48 business hours.
+                </p>
+
+                <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; color: #888888; margin: 0 0 10px 0;">
+                  Order Details
+                </h3>
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                  <tbody>
+                    ${itemsListHtml}
+                  </tbody>
                 </table>
-                <div style="margin-top: 16px; text-align: right; font-size: 18px; color: #e11d48;">
-                  Total Paid: <strong>${formatINR(updatedOrder.total)}</strong>
+
+                <div style="margin-top: 16px; text-align: right; font-size: 14px; color: #bbb;">
+                  <p style="margin: 4px 0;">Subtotal: <strong style="color: #fff;">${formatINR(updatedOrder.subtotal)}</strong></p>
+                  <p style="margin: 4px 0;">Shipping: <strong style="color: #fff;">${updatedOrder.shipping === 0 ? "FREE" : formatINR(updatedOrder.shipping)}</strong></p>
+                  <p style="margin: 8px 0; font-size: 18px; color: #e11d48;">Total Paid: <strong>${formatINR(updatedOrder.total)}</strong></p>
                 </div>
+
+                <div style="border-top: 1px solid #222222; margin-top: 24px; padding-top: 16px; font-size: 13px; color: #888;">
+                  <p style="margin: 0 0 4px 0; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; color: #bbb;">Shipping To:</p>
+                  <p style="margin: 0; color: #ccc;">${customerName}</p>
+                  <p style="margin: 2px 0; color: #ccc;">${updatedOrder.customer?.address || ""}, ${updatedOrder.customer?.city || ""}, ${updatedOrder.customer?.state || ""} — ${updatedOrder.customer?.pincode || ""}</p>
+                  <p style="margin: 2px 0; color: #ccc;">Phone: +91 ${updatedOrder.customer?.phone || ""}</p>
+                </div>
+
+                <div style="text-align: center; margin-top: 32px;">
+                  <a href="${appUrl}/track?orderId=${updatedOrder.orderId}" 
+                     style="background-color: #ffffff; color: #000000; text-decoration: none; padding: 12px 28px; font-size: 12px; font-weight: bold; letter-spacing: 0.15em; text-transform: uppercase; border-radius: 4px; display: inline-block;">
+                    Track Shipment
+                  </a>
+                </div>
+
+                <div style="border-top: 1px solid #222222; margin-top: 32px; padding-top: 16px; font-size: 11px; color: #666; text-align: center;">
+                  <p style="margin: 0 0 4px 0;">Carrier tracking number (AWB) will also be sent via SMS upon courier pickup.</p>
+                  <p style="margin: 0;">Support: <a href="mailto:support@conscentfragrances.com" style="color: #e11d48; text-decoration: none;">support@conscentfragrances.com</a> | +91 7982846176</p>
+                </div>
+
               </div>
             </div>
           `,

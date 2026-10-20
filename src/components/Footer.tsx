@@ -85,10 +85,10 @@ export function Footer() {
             <ul className="text-background/70 mt-4 space-y-2 text-sm">
               <li>
                 <a
-                  href="mailto:conscent7@gmail.com"
+                  href="mailto:support@conscentfragrances.com"
                   className="hover:text-brand transition-colors"
                 >
-                  conscent7@gmail.com
+                  support@conscentfragrances.com
                 </a>
               </li>
               <li>

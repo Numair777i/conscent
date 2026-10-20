@@ -87,10 +87,10 @@ export default function ShippingPolicy() {
             will be sent via SMS and email. For any delivery queries, please
             reach out to customer support at{" "}
             <a
-              href="mailto:conscent7@gmail.com"
+              href="mailto:support@conscentfragrances.com"
               className="underline font-medium text-black"
             >
-              conscent7@gmail.com
+              support@conscentfragrances.com
             </a>
             .
           </p>

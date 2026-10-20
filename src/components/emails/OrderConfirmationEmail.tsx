@@ -313,10 +313,10 @@ export const OrderConfirmationEmail: React.FC<OrderConfirmationEmailProps> = ({
                       <p style={{ margin: "0 0 6px 0" }}>
                         Questions? Reply directly to this email or reach us at{" "}
                         <a
-                          href="mailto:conscent7@gmail.com"
+                          href="mailto:support@conscentfragrances.com"
                           style={{ color: "#e11d48", textDecoration: "none" }}
                         >
-                          conscent7@gmail.com
+                          support@conscentfragrances.com
                         </a>
                       </p>
                       <p style={{ margin: 0 }}>

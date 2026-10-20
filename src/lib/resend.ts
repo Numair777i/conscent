@@ -15,5 +15,5 @@ export const resend = new Resend(apiKey || "re_dummy_key_for_build");
 export const EMAIL_CONFIG = {
   from: "CONSCENT <orders@conscentfragrances.com>",
   adminBcc: ["conscent7@gmail.com"],
-  supportEmail: "conscent7@gmail.com",
+  supportEmail: "support@conscentfragrances.com",
 } as const;

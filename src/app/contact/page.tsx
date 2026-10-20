@@ -10,7 +10,6 @@ export default function ContactUs() {
   return (
     <div className="min-h-screen bg-white text-neutral-900 py-16 px-6 md:px-12 lg:px-24">
       <div className="max-w-4xl mx-auto space-y-10">
-        {/* Main Title & Metadata */}
         <div>
           <h1 className="text-4xl md:text-5xl font-extrabold uppercase tracking-tight font-sans">
             Contact Us
@@ -33,10 +32,10 @@ export default function ContactUs() {
             <li>
               <strong className="text-black">Support Email:</strong>{" "}
               <a
-                href="mailto:conscent7@gmail.com"
+                href="mailto:support@conscentfragrances.com"
                 className="underline font-medium text-black"
               >
-                conscent7@gmail.com
+                support@conscentfragrances.com
               </a>
             </li>
             <li>
@@ -82,10 +81,10 @@ export default function ContactUs() {
             Protection (E-Commerce) Rules, any unresolved delivery or payment
             grievances may be addressed to our dedicated support officer at{" "}
             <a
-              href="mailto:conscent7@gmail.com"
+              href="mailto:support@conscentfragrances.com"
               className="underline font-medium text-black"
             >
-              conscent7@gmail.com
+              support@conscentfragrances.com
             </a>
             . All escalations are acknowledged within 24 business hours.
           </p>

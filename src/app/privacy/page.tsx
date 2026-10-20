@@ -123,7 +123,8 @@ export default function PrivacyPolicyPage() {
               110025
             </p>
             <p>
-              <strong>Privacy & Support Email:</strong> conscent7@gmail.com
+              <strong>Privacy & Support Email:</strong>{" "}
+              support@conscentfragrances.com
             </p>
             <p>
               <strong>Support Helpline:</strong> +91 7982846176 (Mon–Sat, 10:00
