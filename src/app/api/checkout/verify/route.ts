@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
 
-    // 2. Fetch current state to check if webhook already marked it as PAID
+    // 2. Fetch current order state
     const existingOrder = await Order.findOne({ orderId: dbOrderId });
 
     if (!existingOrder) {
@@ -88,12 +88,41 @@ export async function POST(req: NextRequest) {
 
     const updatedOrder = await existingOrder.save();
 
-    // 3. Send Confirmation Email via Resend (only if not already sent by webhook)
-    if (
-      process.env.RESEND_API_KEY &&
-      !wasAlreadyPaid &&
-      updatedOrder.customer?.email
-    ) {
+    // 3. Resolve recipient email defensively without triggering no-explicit-any
+    const orderData = updatedOrder.toObject
+      ? (updatedOrder.toObject() as Record<string, unknown>)
+      : (updatedOrder as unknown as Record<string, unknown>);
+
+    const recipientEmail =
+      updatedOrder.customer?.email ||
+      (typeof orderData.customerEmail === "string"
+        ? orderData.customerEmail
+        : "") ||
+      (typeof orderData.email === "string" ? orderData.email : "");
+
+    const customerName =
+      updatedOrder.customer?.fullName ||
+      (typeof orderData.customerName === "string"
+        ? orderData.customerName
+        : "") ||
+      "Fragrance Patron";
+
+    console.log("Order verification email check:", {
+      orderId: updatedOrder.orderId,
+      recipientEmail,
+      wasAlreadyPaid,
+      hasResendKey: Boolean(process.env.RESEND_API_KEY),
+    });
+
+    // 4. Send Confirmation Email via Resend
+    if (!process.env.RESEND_API_KEY) {
+      console.error("RESEND_API_KEY is not defined in environment variables!");
+    } else if (!recipientEmail) {
+      console.error(
+        "Could not find customer email on order record:",
+        JSON.stringify(updatedOrder.customer || orderData),
+      );
+    } else {
       try {
         const itemsListHtml = (updatedOrder.items || [])
           .map(
@@ -116,9 +145,9 @@ export async function POST(req: NextRequest) {
         const fromEmail =
           process.env.EMAIL_FROM || "CONSCENT <orders@conscentfragrances.com>";
 
-        await resend.emails.send({
+        const { data, error: resendError } = await resend.emails.send({
           from: fromEmail,
-          to: [updatedOrder.customer.email],
+          to: [recipientEmail],
           bcc: ["conscent7@gmail.com"],
           subject: `Order Confirmed: ${updatedOrder.orderId} | CONSCENT Fragrances`,
           html: `
@@ -141,7 +170,7 @@ export async function POST(req: NextRequest) {
                 </div>
 
                 <p style="color: #cccccc; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0;">
-                  Hey <strong>${updatedOrder.customer.fullName}</strong>, thank you for your order. Your fragrance is being prepared and will be dispatched from our New Delhi hub within 24 to 48 business hours.
+                  Hey <strong>${customerName}</strong>, thank you for your order. Your fragrance is being prepared and will be dispatched from our New Delhi hub within 24 to 48 business hours.
                 </p>
 
                 <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; color: #888888; margin: 0 0 10px 0;">
@@ -161,9 +190,9 @@ export async function POST(req: NextRequest) {
 
                 <div style="border-top: 1px solid #222222; margin-top: 24px; padding-top: 16px; font-size: 13px; color: #888;">
                   <p style="margin: 0 0 4px 0; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; color: #bbb;">Shipping To:</p>
-                  <p style="margin: 0; color: #ccc;">${updatedOrder.customer.fullName}</p>
-                  <p style="margin: 2px 0; color: #ccc;">${updatedOrder.customer.address}, ${updatedOrder.customer.city}, ${updatedOrder.customer.state} — ${updatedOrder.customer.pincode}</p>
-                  <p style="margin: 2px 0; color: #ccc;">Phone: +91 ${updatedOrder.customer.phone}</p>
+                  <p style="margin: 0; color: #ccc;">${customerName}</p>
+                  <p style="margin: 2px 0; color: #ccc;">${updatedOrder.customer?.address || ""}, ${updatedOrder.customer?.city || ""}, ${updatedOrder.customer?.state || ""} — ${updatedOrder.customer?.pincode || ""}</p>
+                  <p style="margin: 2px 0; color: #ccc;">Phone: +91 ${updatedOrder.customer?.phone || ""}</p>
                 </div>
 
                 <div style="text-align: center; margin-top: 32px;">
@@ -182,6 +211,12 @@ export async function POST(req: NextRequest) {
             </div>
           `,
         });
+
+        if (resendError) {
+          console.error("Resend API rejected the email:", resendError);
+        } else {
+          console.log("Resend email sent successfully! ID:", data?.id);
+        }
       } catch (emailErr) {
         console.error("Resend delivery failed in verify route:", emailErr);
       }
