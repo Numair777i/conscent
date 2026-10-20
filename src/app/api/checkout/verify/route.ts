@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { Resend } from "resend";
 import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
+import { Subscriber } from "@/models/Subscriber";
 import { formatINR } from "@/lib/utils";
 
 interface OrderItem {
@@ -114,7 +115,34 @@ export async function POST(req: NextRequest) {
       hasResendKey: Boolean(process.env.RESEND_API_KEY),
     });
 
-    // 4. Send Confirmation Email via Resend
+    // 4. Auto-enroll paying customer into Subscriber collection
+    if (recipientEmail) {
+      try {
+        await Subscriber.findOneAndUpdate(
+          { email: recipientEmail.toLowerCase() },
+          {
+            $set: {
+              email: recipientEmail.toLowerCase(),
+              name: customerName,
+              isVerified: true,
+              source: "checkout_purchase",
+              subscribedAt: new Date(),
+            },
+          },
+          { upsert: true, new: true },
+        );
+        console.log(
+          `Auto-enrolled ${recipientEmail} into verified subscribers.`,
+        );
+      } catch (subErr) {
+        console.error(
+          "Failed to auto-enroll customer into subscribers:",
+          subErr,
+        );
+      }
+    }
+
+    // 5. Send Confirmation Email & Welcome via Resend
     if (!process.env.RESEND_API_KEY) {
       console.error("RESEND_API_KEY is not defined in environment variables!");
     } else if (!recipientEmail) {
