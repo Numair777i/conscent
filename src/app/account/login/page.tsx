@@ -83,38 +83,51 @@ function LoginForm() {
     setLoading(true);
 
     try {
+      const normalizedEmail = form.email.toLowerCase().trim();
+
       if (isRegister) {
         const res = await fetch("/api/auth/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+            name: form.name.trim(),
+            email: normalizedEmail,
+            password: form.password,
+          }),
         });
+
         const data = await res.json();
         if (!res.ok) {
           throw new Error(data.error || "Failed to create account.");
         }
-
-        toast.success("Account created! Signing you in...");
       }
 
+      // Automatically sign in directly after creating account or on manual login
       const loginRes = await signIn("credentials", {
         redirect: false,
-        email: form.email.toLowerCase().trim(),
+        email: normalizedEmail,
         password: form.password,
       });
 
       if (loginRes?.error) {
         toast.error("Invalid email or password.");
-      } else {
-        await syncGuestOrders();
-        router.push(callbackUrl);
-        router.refresh();
+        setLoading(false);
+        return;
       }
+
+      await syncGuestOrders();
+      toast.success(
+        isRegister
+          ? "Account created! Welcome to CONSCENT."
+          : "Signed in successfully.",
+      );
+
+      // Hard redirect ensures cookies are fully set and server component recognizes session
+      window.location.href = callbackUrl;
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong.";
       toast.error(message);
-    } finally {
       setLoading(false);
     }
   };
