@@ -9,7 +9,6 @@ import { X, Loader2 } from "lucide-react";
 function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/account";
-  const authError = searchParams.get("error");
 
   const [isRegister, setIsRegister] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -85,6 +84,7 @@ function LoginForm() {
     try {
       const normalizedEmail = form.email.toLowerCase().trim();
 
+      // 1. If Registering, create user record in MongoDB first
       if (isRegister) {
         const res = await fetch("/api/auth/register", {
           method: "POST",
@@ -102,15 +102,28 @@ function LoginForm() {
         }
       }
 
-      await syncGuestOrders();
-
-      // Native redirect: true writes the set-cookie header directly during navigation
-      await signIn("credentials", {
-        redirect: true,
-        callbackUrl,
+      // 2. Perform Credentials SignIn
+      const res = await signIn("credentials", {
+        redirect: false,
         email: normalizedEmail,
         password: form.password,
       });
+
+      if (!res || res.error) {
+        toast.error("Invalid email or password.");
+        setLoading(false);
+        return;
+      }
+
+      await syncGuestOrders();
+      toast.success(
+        isRegister
+          ? "Account created! Welcome to CONSCENT."
+          : "Signed in successfully.",
+      );
+
+      // 3. Full page redirection guarantees the browser sets session cookie
+      window.location.assign(callbackUrl);
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong.";
@@ -132,14 +145,6 @@ function LoginForm() {
               : "Sign in to access your orders and profile"}
           </p>
         </div>
-
-        {authError && (
-          <div className="p-3 text-xs border border-destructive/30 bg-destructive/10 text-destructive text-center">
-            {authError === "CredentialsSignin"
-              ? "Invalid email or password."
-              : "Authentication failed. Please try again."}
-          </div>
-        )}
 
         <button
           type="button"
