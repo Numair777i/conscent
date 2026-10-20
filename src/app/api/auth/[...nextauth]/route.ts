@@ -7,8 +7,12 @@ import { Subscriber } from "@/models/Subscriber";
 export const authConfig: NextAuthConfig = {
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: (process.env.AUTH_GOOGLE_ID ||
+        process.env.GOOGLE_CLIENT_ID ||
+        "") as string,
+      clientSecret: (process.env.AUTH_GOOGLE_SECRET ||
+        process.env.GOOGLE_CLIENT_SECRET ||
+        "") as string,
     }),
   ],
   session: {
@@ -20,6 +24,7 @@ export const authConfig: NextAuthConfig = {
         try {
           await connectDB();
 
+          // Auto-enroll Google-verified user to Subscriber collection
           await Subscriber.findOneAndUpdate(
             { email: user.email.toLowerCase() },
             {
@@ -52,9 +57,10 @@ export const authConfig: NextAuthConfig = {
       return token;
     },
   },
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   pages: {
-    signIn: "/login",
-    error: "/login",
+    signIn: "/account/login",
+    error: "/account/login",
   },
 };
 
