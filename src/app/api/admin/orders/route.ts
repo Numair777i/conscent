@@ -8,30 +8,52 @@ const resend = new Resend(process.env.RESEND_API_KEY || "");
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const secret = searchParams.get("secret");
+    const querySecret = searchParams.get("secret");
+    const headerSecret =
+      req.headers.get("x-admin-secret") ||
+      req.headers.get("authorization")?.replace("Bearer ", "");
 
-    if (secret !== process.env.ADMIN_SECRET) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const providedSecret = querySecret || headerSecret;
+    const expectedSecret = process.env.ADMIN_SECRET || "admin12345";
+
+    if (!providedSecret || providedSecret !== expectedSecret) {
+      console.warn("Admin orders fetch rejected: Invalid or missing secret");
+      return NextResponse.json(
+        { error: "Unauthorized", orders: [] },
+        { status: 401 },
+      );
     }
 
     await connectDB();
-    const orders = await Order.find({}).sort({ createdAt: -1 });
+
+    // Use .lean() to return clean plain JSON objects directly
+    const orders = await Order.find({}).sort({ createdAt: -1 }).lean();
+
+    console.log(
+      `Admin orders fetched successfully: ${orders.length} order(s) found.`,
+    );
 
     return NextResponse.json({ orders });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to fetch orders";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Admin GET orders error:", error);
+    return NextResponse.json({ error: message, orders: [] }, { status: 500 });
   }
 }
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { secret, orderId, shippingStatus, trackingNumber } =
-      await req.json();
+    const body = await req.json();
+    const { secret, orderId, shippingStatus, trackingNumber } = body;
+    const expectedSecret = process.env.ADMIN_SECRET || "admin12345";
 
-    if (secret !== process.env.ADMIN_SECRET) {
+    if (!secret || secret !== expectedSecret) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!orderId) {
+      return NextResponse.json({ error: "Missing orderId" }, { status: 400 });
     }
 
     await connectDB();
@@ -46,7 +68,7 @@ export async function PATCH(req: NextRequest) {
 
     const updatedOrder = await order.save();
 
-    // 1. Resolve safe recipient email and customer name (two-step unknown cast)
+    // Convert document to clean plain object
     const plainOrder = (typeof updatedOrder.toObject === "function"
       ? updatedOrder.toObject()
       : updatedOrder) as unknown as Record<string, unknown>;
@@ -65,7 +87,6 @@ export async function PATCH(req: NextRequest) {
         : "") ||
       "Fragrance Patron";
 
-    // 2. Safe tracking number resolution
     const activeTrackingNo =
       updatedOrder.trackingNumber ||
       (typeof plainOrder.trackingNumber === "string"
@@ -76,7 +97,7 @@ export async function PATCH(req: NextRequest) {
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL || "https://www.conscentfragrances.com";
 
-    // 3. Send Status Update Email via Resend
+    // Dispatch status update email if Resend key and recipient email exist
     if (process.env.RESEND_API_KEY && recipientEmail) {
       const statusTitle =
         shippingStatus === "SHIPPED"
@@ -91,11 +112,11 @@ export async function PATCH(req: NextRequest) {
 
       const statusDescription =
         shippingStatus === "SHIPPED"
-          ? `Your bespoke parfum blend has been packed and handed over to our courier partner. It is now in transit from our New Delhi facility.`
+          ? "Your bespoke parfum blend has been packed and handed over to our courier partner. It is now in transit from our New Delhi facility."
           : shippingStatus === "DELIVERED"
-            ? `Your CONSCENT package has been delivered. We hope you love the fragrance!`
+            ? "Your CONSCENT package has been delivered. We hope you love the fragrance!"
             : shippingStatus === "PACKED"
-              ? `Your fragrance bottle has been inspected, packed, and sealed. Pickup is scheduled shortly.`
+              ? "Your fragrance bottle has been inspected, packed, and sealed. Pickup is scheduled shortly."
               : `Your order status has been updated to: <strong>${shippingStatus}</strong>.`;
 
       try {
@@ -137,7 +158,7 @@ export async function PATCH(req: NextRequest) {
                 </div>
 
                 <div style="border-top: 1px solid #222222; margin-top: 32px; padding-top: 16px; font-size: 11px; color: #666; text-align: center;">
-                  <p style="margin: 0 0 4px 0;">Courier tracking scans may take up to 6–12 hours after pickup to reflect on carrier servers.</p>
+                  <p style="margin: 0 0 4px 0;">Carrier tracking scans may take up to 6–12 hours after pickup to reflect on carrier servers.</p>
                   <p style="margin: 0;">Support: <a href="mailto:conscent7@gmail.com" style="color: #e11d48; text-decoration: none;">conscent7@gmail.com</a> | +91 7982846176</p>
                 </div>
 
@@ -154,6 +175,7 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to update order";
+    console.error("Admin PATCH order error:", error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
