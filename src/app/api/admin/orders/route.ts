@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
 import { Resend } from "resend";
-import { formatINR } from "@/lib/utils";
 
 const resend = new Resend(process.env.RESEND_API_KEY || "");
 
@@ -47,12 +46,10 @@ export async function PATCH(req: NextRequest) {
 
     const updatedOrder = await order.save();
 
-    // 1. Resolve safe recipient email and customer name
-    const plainOrder = (
-      typeof updatedOrder.toObject === "function"
-        ? updatedOrder.toObject()
-        : updatedOrder
-    ) as Record<string, unknown>;
+    // 1. Resolve safe recipient email and customer name (two-step unknown cast)
+    const plainOrder = (typeof updatedOrder.toObject === "function"
+      ? updatedOrder.toObject()
+      : updatedOrder) as unknown as Record<string, unknown>;
 
     const recipientEmail =
       updatedOrder.customer?.email ||
