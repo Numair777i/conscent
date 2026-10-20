@@ -1,152 +1,162 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
-import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
-import { sendTrackingUpdatedEmail } from "@/lib/email";
+import { Resend } from "resend";
+import { formatINR } from "@/lib/utils";
 
-export const dynamic = "force-dynamic";
-
-const AUTHORIZED_ADMIN_EMAIL = "conscent7@gmail.com";
-
-async function isAuthorized(req: NextRequest): Promise<boolean> {
-  // 1. Authenticated session check (conscent7@gmail.com)
-  const session = await auth();
-  if (session?.user?.email?.toLowerCase().trim() === AUTHORIZED_ADMIN_EMAIL) {
-    return true;
-  }
-
-  // 2. Timing-safe ADMIN_SECRET check for curl / external automation
-  const envSecret = process.env.ADMIN_SECRET;
-  if (!envSecret) return false;
-
-  const authHeader = req.headers.get("authorization");
-  const headerSecret =
-    req.headers.get("x-admin-secret") ||
-    (authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : null);
-
-  const candidate = headerSecret?.trim();
-  if (!candidate) return false;
-
-  const candidateBuf = Buffer.from(candidate, "utf-8");
-  const secretBuf = Buffer.from(envSecret, "utf-8");
-
-  if (candidateBuf.length !== secretBuf.length) return false;
-  return crypto.timingSafeEqual(candidateBuf, secretBuf);
-}
+const resend = new Resend(process.env.RESEND_API_KEY || "");
 
 export async function GET(req: NextRequest) {
   try {
-    const authorized = await isAuthorized(req);
-    if (!authorized) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized", orders: [] },
-        { status: 401 },
-      );
+    const { searchParams } = new URL(req.url);
+    const secret = searchParams.get("secret");
+
+    if (secret !== process.env.ADMIN_SECRET) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     await connectDB();
+    const orders = await Order.find({}).sort({ createdAt: -1 });
 
-    const orders = await Order.find({}).sort({ createdAt: -1 }).lean();
-
-    return NextResponse.json({
-      success: true,
-      orders: orders || [],
-    });
-  } catch (err) {
+    return NextResponse.json({ orders });
+  } catch (error) {
     const message =
-      err instanceof Error ? err.message : "Failed to fetch orders";
-    console.error("Admin orders fetch error:", err);
-    return NextResponse.json(
-      { success: false, error: message, orders: [] },
-      { status: 500 },
-    );
+      error instanceof Error ? error.message : "Failed to fetch orders";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 export async function PATCH(req: NextRequest) {
   try {
-    const authorized = await isAuthorized(req);
-    if (!authorized) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401 },
-      );
-    }
+    const { secret, orderId, shippingStatus, trackingNumber } =
+      await req.json();
 
-    const body = await req.json();
-    const { orderId, trackingNumber, shippingStatus } = body;
-
-    if (!orderId) {
-      return NextResponse.json(
-        { success: false, error: "Order ID is required" },
-        { status: 400 },
-      );
+    if (secret !== process.env.ADMIN_SECRET) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     await connectDB();
 
-    // Fetch existing state to check what actually changed
-    const previousOrder = await Order.findOne({ orderId }).lean();
-    if (!previousOrder) {
-      return NextResponse.json(
-        { success: false, error: "Order not found" },
-        { status: 404 },
-      );
+    const order = await Order.findOne({ orderId });
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    const updateFields: Record<string, string> = {};
-    if (trackingNumber !== undefined) {
-      updateFields.trackingNumber = trackingNumber.trim();
+    if (shippingStatus) order.shippingStatus = shippingStatus;
+    if (trackingNumber) order.trackingNumber = trackingNumber;
+
+    const updatedOrder = await order.save();
+
+    // 1. Resolve safe recipient email and customer name
+    const plainOrder = (
+      typeof updatedOrder.toObject === "function"
+        ? updatedOrder.toObject()
+        : updatedOrder
+    ) as Record<string, unknown>;
+
+    const recipientEmail =
+      updatedOrder.customer?.email ||
+      (typeof plainOrder.customerEmail === "string"
+        ? plainOrder.customerEmail
+        : "") ||
+      (typeof plainOrder.email === "string" ? plainOrder.email : "");
+
+    const customerName =
+      updatedOrder.customer?.fullName ||
+      (typeof plainOrder.customerName === "string"
+        ? plainOrder.customerName
+        : "") ||
+      "Fragrance Patron";
+
+    // 2. Safe tracking number resolution
+    const activeTrackingNo =
+      updatedOrder.trackingNumber ||
+      (typeof plainOrder.trackingNumber === "string"
+        ? plainOrder.trackingNumber
+        : "") ||
+      "Will be updated shortly via SMS";
+
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL || "https://www.conscentfragrances.com";
+
+    // 3. Send Status Update Email via Resend
+    if (process.env.RESEND_API_KEY && recipientEmail) {
+      const statusTitle =
+        shippingStatus === "SHIPPED"
+          ? "Shipment Dispatched"
+          : shippingStatus === "OUT_FOR_DELIVERY"
+            ? "Out for Delivery Today"
+            : shippingStatus === "DELIVERED"
+              ? "Package Delivered"
+              : shippingStatus === "PACKED"
+                ? "Order Packed & Ready"
+                : `Order Status: ${shippingStatus}`;
+
+      const statusDescription =
+        shippingStatus === "SHIPPED"
+          ? `Your bespoke parfum blend has been packed and handed over to our courier partner. It is now in transit from our New Delhi facility.`
+          : shippingStatus === "DELIVERED"
+            ? `Your CONSCENT package has been delivered. We hope you love the fragrance!`
+            : shippingStatus === "PACKED"
+              ? `Your fragrance bottle has been inspected, packed, and sealed. Pickup is scheduled shortly.`
+              : `Your order status has been updated to: <strong>${shippingStatus}</strong>.`;
+
+      try {
+        await resend.emails.send({
+          from:
+            process.env.EMAIL_FROM ||
+            "CONSCENT <orders@conscentfragrances.com>",
+          to: [recipientEmail],
+          bcc: ["conscent7@gmail.com"],
+          subject: `${statusTitle} - ${updatedOrder.orderId} | CONSCENT Fragrances`,
+          html: `
+            <div style="background-color: #000000; color: #ffffff; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+              <div style="max-width: 560px; margin: 0 auto; background-color: #0a0a0a; border: 1px solid #222222; padding: 32px; border-radius: 8px;">
+                
+                <div style="border-bottom: 1px solid #222222; padding-bottom: 20px; margin-bottom: 24px;">
+                  <h1 style="font-size: 26px; letter-spacing: 0.15em; text-transform: uppercase; margin: 0; font-weight: 800; color: #ffffff;">
+                    CONS<span style="color: #e11d48;">CENT</span>
+                  </h1>
+                  <p style="margin: 6px 0 0 0; color: #888888; font-size: 13px; letter-spacing: 0.05em;">
+                    Scent you can't say no to.
+                  </p>
+                </div>
+
+                <div style="background-color: #141414; border: 1px solid #262626; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
+                  <p style="margin: 0; font-size: 14px; color: #ddd;"><strong>Order ID:</strong> ${updatedOrder.orderId}</p>
+                  <p style="margin: 6px 0 0; font-size: 14px; color: #ddd;"><strong>Tracking Number (AWB):</strong> <span style="color: #e11d48; font-family: monospace; font-size: 15px; font-weight: bold;">${activeTrackingNo}</span></p>
+                  <p style="margin: 6px 0 0; font-size: 14px; color: #aaa;"><strong>Current Status:</strong> <span style="color: #22c55e; font-weight: bold;">${shippingStatus}</span></p>
+                </div>
+
+                <p style="color: #cccccc; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0;">
+                  Hey <strong>${customerName}</strong>, ${statusDescription}
+                </p>
+
+                <div style="text-align: center; margin: 32px 0;">
+                  <a href="${appUrl}/track?orderId=${updatedOrder.orderId}" 
+                     style="background-color: #ffffff; color: #000000; text-decoration: none; padding: 12px 28px; font-size: 12px; font-weight: bold; letter-spacing: 0.15em; text-transform: uppercase; border-radius: 4px; display: inline-block;">
+                    Track Live Shipment
+                  </a>
+                </div>
+
+                <div style="border-top: 1px solid #222222; margin-top: 32px; padding-top: 16px; font-size: 11px; color: #666; text-align: center;">
+                  <p style="margin: 0 0 4px 0;">Courier tracking scans may take up to 6–12 hours after pickup to reflect on carrier servers.</p>
+                  <p style="margin: 0;">Support: <a href="mailto:conscent7@gmail.com" style="color: #e11d48; text-decoration: none;">conscent7@gmail.com</a> | +91 7982846176</p>
+                </div>
+
+              </div>
+            </div>
+          `,
+        });
+      } catch (emailError) {
+        console.error("Failed to send order status update email:", emailError);
+      }
     }
-    if (shippingStatus) {
-      updateFields.shippingStatus = shippingStatus.trim();
-    }
 
-    const updatedOrder = await Order.findOneAndUpdate(
-      { orderId },
-      { $set: updateFields },
-      { new: true },
-    ).lean();
-
-    if (!updatedOrder) {
-      return NextResponse.json(
-        { success: false, error: "Order not found" },
-        { status: 404 },
-      );
-    }
-
-    // Trigger Resend email update if status advanced or tracking code was modified
-    const statusChanged =
-      Boolean(shippingStatus) &&
-      shippingStatus !== previousOrder.shippingStatus;
-    const awbChanged =
-      trackingNumber !== undefined &&
-      trackingNumber.trim() !== (previousOrder.trackingNumber || "");
-
-    if ((statusChanged || awbChanged) && updatedOrder.customer?.email) {
-      // Fire-and-forget: does not block the HTTP response if mail queue is slow
-      sendTrackingUpdatedEmail({
-        orderId: updatedOrder.orderId,
-        customer: updatedOrder.customer,
-        shippingStatus: updatedOrder.shippingStatus,
-        trackingNumber: updatedOrder.trackingNumber,
-      }).catch((err) => {
-        console.error("Failed to dispatch tracking email update:", err);
-      });
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: "Order updated successfully",
-      order: updatedOrder,
-    });
+    return NextResponse.json({ success: true, order: updatedOrder });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to update order";
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
