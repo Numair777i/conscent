@@ -2,14 +2,14 @@
 
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { X, Loader2 } from "lucide-react";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/account";
+  const authError = searchParams.get("error");
 
   const [isRegister, setIsRegister] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -102,28 +102,15 @@ function LoginForm() {
         }
       }
 
-      // Automatically sign in directly after creating account or on manual login
-      const loginRes = await signIn("credentials", {
-        redirect: false,
+      await syncGuestOrders();
+
+      // Native redirect: true writes the set-cookie header directly during navigation
+      await signIn("credentials", {
+        redirect: true,
+        callbackUrl,
         email: normalizedEmail,
         password: form.password,
       });
-
-      if (loginRes?.error) {
-        toast.error("Invalid email or password.");
-        setLoading(false);
-        return;
-      }
-
-      await syncGuestOrders();
-      toast.success(
-        isRegister
-          ? "Account created! Welcome to CONSCENT."
-          : "Signed in successfully.",
-      );
-
-      // Hard redirect ensures cookies are fully set and server component recognizes session
-      window.location.href = callbackUrl;
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong.";
@@ -145,6 +132,14 @@ function LoginForm() {
               : "Sign in to access your orders and profile"}
           </p>
         </div>
+
+        {authError && (
+          <div className="p-3 text-xs border border-destructive/30 bg-destructive/10 text-destructive text-center">
+            {authError === "CredentialsSignin"
+              ? "Invalid email or password."
+              : "Authentication failed. Please try again."}
+          </div>
+        )}
 
         <button
           type="button"
