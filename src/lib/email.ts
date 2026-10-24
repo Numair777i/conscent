@@ -4,20 +4,14 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-// Use your verified custom domain address once DNS is active,
-// or "onboarding@resend.dev" during local testing.
-const FROM_EMAIL =
-  process.env.NODE_ENV === "production"
-    ? "CONSCENT Fragrances <orders@conscentfragrances.com>"
-    : "CONSCENT <onboarding@resend.dev>";
+// Verified root domain for transactional receipts & tracking updates
+const FROM_EMAIL = "CONSCENT Fragrances <orders@conscentfragrances.com>";
 
-const FROM_MARKETING =
-  process.env.NODE_ENV === "production"
-    ? "CONSCENT Studio <news@conscentfragrances.com>"
-    : "CONSCENT Studio <onboarding@resend.dev>";
+// Verified subdomain for marketing, opt-in confirmations & broadcasts
+const FROM_MARKETING = "CONSCENT Studio <dispatch@news.conscentfragrances.com>";
 
 const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL || "https://conscentfragrances.com";
+  process.env.NEXT_PUBLIC_APP_URL || "https://www.conscentfragrances.com";
 
 /* =========================================================================
    1. TRANSACTIONAL: ORDER PLACED EMAIL
@@ -48,6 +42,7 @@ export async function sendOrderPlacedEmail(order: {
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
+      replyTo: "support@conscentfragrances.com",
       to: order.customer.email,
       subject: `Order Confirmed: ${order.orderId} | CONSCENT`,
       html: `
@@ -147,7 +142,6 @@ export async function sendTrackingUpdatedEmail(order: {
   const current =
     (order.shippingStatus && statusMap[order.shippingStatus]) ||
     statusMap.SHIPPED;
-  // ... rest of the function remains the same
 
   const carrierUrl = order.trackingNumber
     ? `https://www.delhivery.com/track/package/${encodeURIComponent(order.trackingNumber)}`
@@ -156,6 +150,7 @@ export async function sendTrackingUpdatedEmail(order: {
   try {
     await resend.emails.send({
       from: FROM_EMAIL,
+      replyTo: "support@conscentfragrances.com",
       to: order.customer.email,
       subject: `Shipping Update: ${order.orderId} is now ${current.headline} | CONSCENT`,
       html: `
@@ -180,10 +175,10 @@ export async function sendTrackingUpdatedEmail(order: {
                 ? `
               <div style="background: #111; border: 1px solid #262626; padding: 16px; margin-bottom: 28px;">
                 <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.2em; color: #888; display: block;">Carrier Tracking Number (Delhivery Surface)</span>
-                <span style="font-family: monospace; font-size: 16px; font-weight: bold; color: #fff; margin-top: 4px; display: inline-block;">\${order.trackingNumber}</span>
+                <span style="font-family: monospace; font-size: 16px; font-weight: bold; color: #fff; margin-top: 4px; display: inline-block;">${order.trackingNumber}</span>
               </div>
               <div style="text-align: center; margin-bottom: 16px;">
-                <a href="\${carrierUrl}" style="background: #fff; color: #000; text-decoration: none; padding: 13px 26px; font-size: 11px; font-weight: bold; letter-spacing: 0.2em; text-transform: uppercase; display: inline-block;">
+                <a href="${carrierUrl}" style="background: #fff; color: #000; text-decoration: none; padding: 13px 26px; font-size: 11px; font-weight: bold; letter-spacing: 0.2em; text-transform: uppercase; display: inline-block;">
                   Track with Carrier
                 </a>
               </div>
@@ -216,12 +211,17 @@ export async function sendNewsletterVerificationEmail(
   if (!resend || !email) return;
 
   const verificationUrl = `${APP_URL}/api/newsletter/verify?token=${encodeURIComponent(token)}`;
+  const unsubUrl = `${APP_URL}/api/newsletter/unsubscribe?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
 
   try {
     await resend.emails.send({
       from: FROM_MARKETING,
+      replyTo: "support@conscentfragrances.com",
       to: email,
       subject: `Confirm Your CONSCENT Studio Subscription`,
+      headers: {
+        "List-Unsubscribe": `<${unsubUrl}>`,
+      },
       html: `
         <!DOCTYPE html>
         <html>
@@ -270,8 +270,12 @@ export async function sendBroadcastEmail(
   try {
     await resend.emails.send({
       from: FROM_MARKETING,
+      replyTo: "support@conscentfragrances.com",
       to,
       subject: campaign.subject,
+      headers: {
+        "List-Unsubscribe": `<${unsubscribeUrl}>`,
+      },
       html: `
         <!DOCTYPE html>
         <html>
@@ -288,8 +292,8 @@ export async function sendBroadcastEmail(
               campaign.ctaUrl
                 ? `
             <div style="text-align: center; margin: 32px 0;">
-              <a href="\${campaign.ctaUrl}" style="background: #fff; color: #000; text-decoration: none; padding: 14px 32px; font-size: 11px; font-weight: bold; letter-spacing: 0.25em; text-transform: uppercase; display: inline-block;">
-                \${campaign.ctaText || "Explore Extraits"}
+              <a href="${campaign.ctaUrl}" style="background: #fff; color: #000; text-decoration: none; padding: 14px 32px; font-size: 11px; font-weight: bold; letter-spacing: 0.25em; text-transform: uppercase; display: inline-block;">
+                ${campaign.ctaText || "Explore Extraits"}
               </a>
             </div>`
                 : ""

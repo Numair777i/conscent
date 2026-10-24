@@ -169,9 +169,8 @@ export async function POST(req: NextRequest) {
           "https://www.conscentfragrances.com";
 
         await resend.emails.send({
-          from:
-            process.env.EMAIL_FROM ||
-            "CONSCENT <orders@conscentfragrances.com>",
+          from: "CONSCENT Fragrances <orders@conscentfragrances.com>",
+          replyTo: "support@conscentfragrances.com",
           to: [recipientEmail],
           bcc: ["conscent7@gmail.com"],
           subject: `Order Confirmed: ${updatedOrder.orderId} | CONSCENT Fragrances`,
