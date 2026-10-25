@@ -23,7 +23,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://conscentfragrances.com",
+    process.env.NEXT_PUBLIC_APP_URL || "https://www.conscentfragrances.com",
   ),
   title: {
     default: "CONSCENT — Loud Fragrance",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     title: "CONSCENT — Loud Fragrance",
     description:
       "Extrait de parfum engineered for projection. Handcrafted in India.",
-    url: "https://conscentfragrances.com",
+    url: "https://www.conscentfragrances.com",
     siteName: "CONSCENT",
     locale: "en_IN",
     type: "website",
@@ -79,9 +79,26 @@ export default function RootLayout({
           <main className="min-h-[60vh] flex-1">{children}</main>
           <Footer />
         </Providers>
+
+        {/* Razorpay Checkout */}
         <Script
           src="https://checkout.razorpay.com/v1/checkout.js"
           strategy="afterInteractive"
+        />
+
+        {/* Microsoft Clarity Tracking */}
+        <Script
+          id="microsoft-clarity"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(c,l,a,r,i,t,y){
+                  c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                  t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                  y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+              })(window, document, "clarity", "script", "z3ayrdzrmf");
+            `,
+          }}
         />
       </body>
     </html>
