@@ -2,8 +2,10 @@ import { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
   const rawBaseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://conscentfragrances.com";
-  const baseUrl = rawBaseUrl.replace(/\/+\$/, "");
+    process.env.NEXT_PUBLIC_APP_URL || "https://www.conscentfragrances.com";
+
+  // Strips one or more trailing slashes at the end of the string
+  const baseUrl = rawBaseUrl.replace(/\/+$/, "");
 
   return {
     rules: [
@@ -15,9 +17,8 @@ export default function robots(): MetadataRoute.Robots {
           "/admin/",
           "/account/",
           "/checkout",
-          "/checkout/",
+          "/thank-you",
           "/track",
-          "/track/",
         ],
       },
     ],
