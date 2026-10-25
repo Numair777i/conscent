@@ -4,7 +4,7 @@ import bottle1 from "@/assets/bottle-1.jpg";
 import bottle2 from "@/assets/bottle-2.jpg";
 import bottle3 from "@/assets/bottle-3.jpg";
 import bottle4 from "@/assets/bottle-4.jpg";
-import SA from "@/assets/secret-affair.webp";
+import SA from "@/assets/secret-affair-single.webp";
 import trialSet from "@/assets/trial-set.jpg";
 
 export const products: Product[] = [
