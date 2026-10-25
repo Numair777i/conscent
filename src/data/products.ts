@@ -4,7 +4,7 @@ import bottle1 from "@/assets/bottle-1.jpg";
 import bottle2 from "@/assets/bottle-2.jpg";
 import bottle3 from "@/assets/bottle-3.jpg";
 import bottle4 from "@/assets/bottle-4.jpg";
-import bottle5 from "@/assets/bottle-5.jpg";
+import SA from "/public/secret affair single.webp";
 import trialSet from "@/assets/trial-set.jpg";
 
 export const products: Product[] = [
@@ -123,16 +123,16 @@ export const products: Product[] = [
     ],
   },
   {
-    id: "p5",
-    slug: "concrete-grey",
-    name: "CONCRETE GREY",
+    id: "sa",
+    slug: "secret-affair",
+    name: "Secret Affair",
     tagline: "Cold air, wet stone, salt.",
     description:
       "A mineral-fresh aromatic with vetiver and grapefruit. Sharp, urban and built for heat.",
     family: "FRESH / AROMATIC",
     intensity: "MEDIUM",
     gender: "MASC",
-    image: bottle5,
+    image: SA,
     notes: [
       { layer: "top", name: "Grapefruit" },
       { layer: "top", name: "Sea Salt" },
