@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import type { StaticImageData } from "next/image";
 import {
   Minus,
   Plus,
@@ -23,6 +24,16 @@ interface ProductDetailClientProps {
 }
 
 export function ProductDetailClient({ product }: ProductDetailClientProps) {
+  // Normalize gallery: prefer product.images if populated; fallback to product.image
+  const galleryImages: (string | StaticImageData)[] =
+    (product as { images?: (string | StaticImageData)[] }).images &&
+    (product as { images?: (string | StaticImageData)[] }).images!.length > 0
+      ? (product as { images?: (string | StaticImageData)[] }).images!
+      : [product.image];
+
+  const [activeImage, setActiveImage] = useState<string | StaticImageData>(
+    galleryImages[0],
+  );
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(
     product.variants[0],
   );
@@ -59,20 +70,53 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
       <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
         {/* Gallery Section */}
-        <div className="border border-border bg-card relative aspect-4/5 w-full overflow-hidden">
-          {product.badge && (
-            <span className="bg-brand text-brand-foreground absolute top-0 left-0 z-10 px-3 py-1 text-[11px] font-bold tracking-[0.25em] uppercase">
-              {product.badge}
-            </span>
+        <div className="flex flex-col gap-4">
+          {/* Main Hero Stage */}
+          <div className="border border-border bg-card relative aspect-4/5 w-full overflow-hidden">
+            {product.badge && (
+              <span className="bg-brand text-brand-foreground absolute top-0 left-0 z-10 px-3 py-1 text-[11px] font-bold tracking-[0.25em] uppercase">
+                {product.badge}
+              </span>
+            )}
+            <Image
+              src={activeImage}
+              alt={product.name}
+              fill
+              priority
+              sizes="(max-width: 1024px) 100vw, 50vw"
+              className="object-cover transition-opacity duration-300"
+            />
+          </div>
+
+          {/* Thumbnail Track (shown when multiple angles exist) */}
+          {galleryImages.length > 1 && (
+            <div className="flex items-center gap-3 overflow-x-auto pb-1 scrollbar-none">
+              {galleryImages.map((imgSrc, idx) => {
+                const isSelected = activeImage === imgSrc;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setActiveImage(imgSrc)}
+                    aria-label={`View photo angle ${idx + 1}`}
+                    className={`relative aspect-square w-20 shrink-0 overflow-hidden border transition-all cursor-pointer bg-card ${
+                      isSelected
+                        ? "border-brand ring-1 ring-brand"
+                        : "border-border opacity-60 hover:opacity-100 hover:border-foreground/50"
+                    }`}
+                  >
+                    <Image
+                      src={imgSrc}
+                      alt={`${product.name} thumbnail ${idx + 1}`}
+                      fill
+                      sizes="80px"
+                      className="object-cover"
+                    />
+                  </button>
+                );
+              })}
+            </div>
           )}
-          <Image
-            src={product.image}
-            alt={product.name}
-            fill
-            priority
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            className="object-cover"
-          />
         </div>
 
         {/* Product Details Section */}

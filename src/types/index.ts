@@ -29,6 +29,7 @@ export interface Product {
   intensity: "LIGHT" | "MEDIUM" | "HEAVY";
   gender: "MASC" | "FEM" | "UNISEX";
   image: string | StaticImageData;
+  images?: (string | StaticImageData)[]; // Multi-image gallery for product details
   badge?: string;
   notes: Note[];
   variants: Variant[];

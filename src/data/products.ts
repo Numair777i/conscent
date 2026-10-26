@@ -5,7 +5,11 @@ import bottle2 from "@/assets/bottle-2.jpg";
 import bottle3 from "@/assets/bottle-3.jpg";
 import bottle4 from "@/assets/bottle-4.jpg";
 import SA from "@/assets/secret-affair-single.webp";
-import trialSet from "@/assets/trial-set.jpg";
+import liar from "@/assets/Liar.webp";
+import lumora from "@/assets/Lumora.webp";
+import satester from "@/assets/Secret-Affair.webp";
+import tester1 from "@/assets/Pack-of-3.webp";
+import tester2 from "@/assets/Pack-of-3-lying.webp";
 
 export const products: Product[] = [
   {
@@ -155,11 +159,12 @@ export const products: Product[] = [
     name: "TRIAL SET / 06",
     tagline: "Six vials. Find your signature.",
     description:
-      "All six CONSCENT house scents in 2ML travel vials. Credit the full amount against your first full-size bottle.",
+      "All six CONSCENT house scents in 8ML travel vials. Credit the full amount against your first full-size bottle.",
     family: "DISCOVERY",
     intensity: "MEDIUM",
     gender: "UNISEX",
-    image: trialSet,
+    image: tester1,
+    images: [tester2, lumora, satester, liar],
     badge: "STARTER",
     notes: [
       { layer: "top", name: "Mixed Citrus" },
