@@ -11,7 +11,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { TrialSetButton } from "@/components/TrialSetButton";
 import { products } from "@/data/products";
 import { formatINR } from "@/lib/utils";
-import trialSet from "@/assets/trial-set.jpg";
+import tester1 from "@/assets/Pack-of-3.webp";
 
 const faqs = [
   {
@@ -56,7 +56,7 @@ export default function Home() {
         <div className="border-border grid border md:grid-cols-2 overflow-hidden bg-card">
           <div className="bg-muted relative min-h-[340px] md:min-h-full">
             <Image
-              src={trialSet}
+              src={tester1}
               alt="CONSCENT Discovery Trial Set of six vials"
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
