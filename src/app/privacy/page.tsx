@@ -33,7 +33,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="mt-2 list-disc pl-5 space-y-1">
             <li>
-              <strong>Customer & Order Details:</strong> Full name, delivery
+              <strong>Customer &amp; Order Details:</strong> Full name, delivery
               address, registered 10-digit mobile number, and email address.
             </li>
             <li>
@@ -52,7 +52,7 @@ export default function PrivacyPolicyPage() {
 
         <section>
           <h2 className="text-foreground text-lg font-bold uppercase tracking-wider">
-            3. Cookies & Tracking Technologies
+            3. Cookies &amp; Behavioral Telemetry
           </h2>
           <p className="mt-2">
             Our site utilizes essential session cookies and browser storage
@@ -60,12 +60,40 @@ export default function PrivacyPolicyPage() {
             shopping bag across navigation, and verify authenticated logins.
           </p>
           <p className="mt-2">
-            Additionally, we use first-party telemetry tools, including{" "}
-            <strong>Google Analytics</strong>, to measure aggregate website
-            traffic, page performance, and visitor navigation trends. These
-            analytical tools collect non-personally identifiable diagnostic
-            data. You can control or clear cookie storage via your browser
-            settings at any time.
+            To diagnose interface usability issues, eliminate navigation
+            friction, and understand catalog engagement, we partner with
+            behavioral analytics providers:
+          </p>
+          <ul className="mt-2 list-disc pl-5 space-y-2">
+            <li>
+              <strong>Google Analytics:</strong> Collects non-personally
+              identifiable diagnostic metrics regarding aggregate visitor
+              volume, referral channels, and page views.
+            </li>
+            <li>
+              <strong>Microsoft Clarity:</strong> Captures behavioral telemetry,
+              interaction heatmaps, and session replays through first- and
+              third-party cookies. This helps us observe how patrons interact
+              with our product pages and checkout flow.{" "}
+              <strong>All sensitive customer inputs</strong> (including
+              passwords, payment fields, and street addresses) are strictly
+              masked and never recorded or stored by Microsoft Clarity. By using
+              our site, you acknowledge data processing by Microsoft in
+              accordance with the{" "}
+              <a
+                href="https://privacy.microsoft.com/en-us/privacystatement"
+                target="_blank"
+                rel="noreferrer"
+                className="text-foreground font-semibold underline underline-offset-4 hover:text-brand"
+              >
+                Microsoft Privacy Statement
+              </a>
+              .
+            </li>
+          </ul>
+          <p className="mt-2">
+            You can modify, block, or clear your browser’s cookie preferences at
+            any time through your device settings.
           </p>
         </section>
 
@@ -94,7 +122,7 @@ export default function PrivacyPolicyPage() {
 
         <section>
           <h2 className="text-foreground text-lg font-bold uppercase tracking-wider">
-            5. Third-Party Sharing & Security
+            5. Third-Party Sharing &amp; Security
           </h2>
           <p className="mt-2">
             We do not sell, rent, or trade your personal information to
@@ -107,7 +135,7 @@ export default function PrivacyPolicyPage() {
 
         <section className="border border-border p-5 bg-card/40 rounded-lg">
           <h2 className="text-foreground text-lg font-bold uppercase tracking-wider">
-            6. Data Protection & Grievance Contact
+            6. Data Protection &amp; Grievance Contact
           </h2>
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
             If you have questions regarding this Privacy Policy or wish to
@@ -123,7 +151,7 @@ export default function PrivacyPolicyPage() {
               110025
             </p>
             <p>
-              <strong>Privacy & Support Email:</strong>{" "}
+              <strong>Privacy &amp; Support Email:</strong>{" "}
               support@conscentfragrances.com
             </p>
             <p>
