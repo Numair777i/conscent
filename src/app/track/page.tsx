@@ -15,6 +15,7 @@ import {
   Lock,
   ArrowRight,
   Sparkles,
+  UserCheck,
 } from "lucide-react";
 
 interface TrackItem {
@@ -49,7 +50,7 @@ function TrackContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState("");
   const [orderQuery, setOrderQuery] = useState(urlOrderId);
-  const [verificationQuery, setVerificationQuery] = useState(""); // Email or Phone verification
+  const [verificationQuery, setVerificationQuery] = useState("");
   const [activeOrder, setActiveOrder] = useState<TrackOrder | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
@@ -162,14 +163,15 @@ function TrackContent() {
       {/* Main Tracking Form & Authentication Gateway */}
       {!activeOrder && (
         <div className="mt-10 grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
-          {/* Secure 2-Factor Lookup Form */}
+          {/* 2-Factor Lookup Form */}
           <div className="border border-border p-8 bg-card">
             <h2 className="text-lg font-bold tracking-tight uppercase mb-1">
               Secure Parcel Lookup
             </h2>
             <p className="text-xs text-muted-foreground mb-6">
-              To safeguard customer purchase privacy, enter your Order ID along
-              with the email or phone number used during checkout.
+              {isLoggedIn
+                ? "Enter your Order ID below to view dispatch milestones and courier status."
+                : "To safeguard customer purchase privacy, enter your Order ID along with the email or phone number used during checkout."}
             </p>
 
             <form onSubmit={handleTrackSubmit} className="space-y-4">
@@ -229,19 +231,25 @@ function TrackContent() {
             </form>
           </div>
 
-          {/* Account Login Option */}
+          {/* Dynamic Account Card (Logged-in vs Guest) */}
           <div className="border border-border p-8 bg-muted/20 flex flex-col justify-between">
             <div>
               <div className="size-10 bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
-                <Lock className="size-5 text-brand" />
+                {isLoggedIn ? (
+                  <UserCheck className="size-5 text-brand" />
+                ) : (
+                  <Lock className="size-5 text-brand" />
+                )}
               </div>
+
               <h3 className="text-base font-bold uppercase tracking-wider">
-                Have a CONSCENT Account?
+                {isLoggedIn ? "Account Active" : "Have a CONSCENT Account?"}
               </h3>
+
               <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                Log in to view complete history, monitor all active dispatches
-                at a glance, and reorder full-size bottles with discovery set
-                credits.
+                {isLoggedIn
+                  ? "You are logged in. Your recent orders, shipping milestones, and saved delivery addresses are synced in your portal."
+                  : "Log in to view complete history, monitor all active dispatches at a glance, and reorder full-size bottles with discovery set credits."}
               </p>
             </div>
 
@@ -249,9 +257,10 @@ function TrackContent() {
               {isLoggedIn ? (
                 <Link
                   href="/account"
-                  className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-brand hover:underline"
+                  className="inline-flex items-center justify-center w-full border border-border bg-background py-3 text-xs font-bold uppercase tracking-widest hover:border-brand hover:text-brand transition-colors gap-2"
                 >
-                  Go to your order dashboard &rarr;
+                  <span>Go to Order Dashboard</span>
+                  <ArrowRight className="size-3.5" />
                 </Link>
               ) : (
                 <Link
@@ -358,7 +367,7 @@ function TrackContent() {
           <div className="mt-8 pt-6 border-t border-border flex justify-between items-center">
             <button
               onClick={() => setActiveOrder(null)}
-              className="text-xs uppercase tracking-widest font-bold text-muted-foreground hover:text-foreground"
+              className="text-xs uppercase tracking-widest font-bold text-muted-foreground hover:text-foreground cursor-pointer"
             >
               &larr; Track Another Parcel
             </button>
