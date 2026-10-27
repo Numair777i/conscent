@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     q: "Can I try before buying a full bottle?",
-    a: "Yes. The Trial Set / 06 gives you all six house scents in 2ML vials, and the full ₹999 is credited against your first full-size purchase.",
+    a: "Yes. The Trial Set gives you all six house scents in 2ML vials, and the full ₹999 is credited against your first full-size purchase.",
   },
   {
     q: "What are the shipping timelines?",
@@ -34,11 +34,14 @@ const faqs = [
 
 export default function Home() {
   const trial =
-    products.find((p) => p.slug === "trial-set-06") ??
+    products.find((p) => p.slug === "trial-set") ??
     products[products.length - 1];
 
-  const trialSlug = trial?.slug ?? "trial-set-06";
+  const trialSlug = trial?.slug ?? "trial-set";
   const trialUrl = `/parfums/${trialSlug}`;
+
+  // Limit display to 4 products for now
+  const displayedProducts = products.slice(0, 4);
 
   return (
     <div className="flex flex-col">
@@ -83,7 +86,6 @@ export default function Home() {
               <h2 className="font-heading text-5xl sm:text-6xl tracking-tight transition-colors group-hover:text-brand">
                 Trial set
                 <br />
-                <span className="text-brand">/ 06</span>
               </h2>
             </Link>
 
@@ -92,7 +94,7 @@ export default function Home() {
               href={trialUrl}
               className="text-muted-foreground hover:text-foreground mt-4 max-w-md text-sm leading-relaxed sm:text-base block transition-colors"
             >
-              Six 2ML extrait vials. Live with each profile on skin for a week,
+              Three 8ML extrait vials. Live with each profile on skin for a week,
               then put the full ₹999 purchase price towards the 50ML or 100ML
               bottle you love. Zero blind-buy regret.
             </Link>
@@ -122,7 +124,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* House Catalog Grid */}
+      {/* House Catalog Grid (Capped to 4 products) */}
       <section className="mx-auto w-full max-w-[1400px] px-4 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
           <h2 className="font-heading text-5xl sm:text-7xl tracking-tight">
@@ -135,8 +137,8 @@ export default function Home() {
             View all ({products.length})
           </Link>
         </div>
-        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {products.map((p) => (
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {displayedProducts.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
         </div>
