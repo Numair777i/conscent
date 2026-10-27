@@ -37,6 +37,9 @@ export default function Home() {
     products.find((p) => p.slug === "trial-set-06") ??
     products[products.length - 1];
 
+  const trialSlug = trial?.slug ?? "trial-set-06";
+  const trialUrl = `/parfums/${trialSlug}`;
+
   return (
     <div className="flex flex-col">
       <HeroSlider />
@@ -54,29 +57,47 @@ export default function Home() {
       {/* Trial Set Feature Section */}
       <section className="mx-auto w-full max-w-[1400px] px-4 py-20 sm:px-6">
         <div className="border-border grid border md:grid-cols-2 overflow-hidden bg-card">
-          <div className="bg-muted relative min-h-[340px] md:min-h-full">
+          {/* Clickable Image Container */}
+          <Link
+            href={trialUrl}
+            className="group bg-muted relative min-h-[340px] md:min-h-full block overflow-hidden"
+            aria-label="View Trial Set details"
+          >
             <Image
               src={tester1}
               alt="CONSCENT Discovery Trial Set of six vials"
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
-              className="object-cover"
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
-          </div>
+            <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </Link>
+
           <div className="flex flex-col justify-center p-8 sm:p-12 lg:p-16">
             <span className="bg-brand text-brand-foreground w-fit px-2.5 py-1 text-[10px] font-bold tracking-[0.25em] uppercase">
               Start Here
             </span>
-            <h2 className="font-heading mt-5 text-5xl sm:text-6xl tracking-tight">
-              Trial set
-              <br />
-              <span className="text-brand">/ 06</span>
-            </h2>
-            <p className="text-muted-foreground mt-4 max-w-md text-sm leading-relaxed sm:text-base">
+
+            {/* Clickable Title */}
+            <Link href={trialUrl} className="group mt-5 block w-fit">
+              <h2 className="font-heading text-5xl sm:text-6xl tracking-tight transition-colors group-hover:text-brand">
+                Trial set
+                <br />
+                <span className="text-brand">/ 06</span>
+              </h2>
+            </Link>
+
+            {/* Clickable Description */}
+            <Link
+              href={trialUrl}
+              className="text-muted-foreground hover:text-foreground mt-4 max-w-md text-sm leading-relaxed sm:text-base block transition-colors"
+            >
               Six 2ML extrait vials. Live with each profile on skin for a week,
               then put the full ₹999 purchase price towards the 50ML or 100ML
               bottle you love. Zero blind-buy regret.
-            </p>
+            </Link>
+
+            {/* Pricing Summary */}
             <div className="mt-6 flex items-baseline gap-3">
               <span className="text-3xl font-bold">{formatINR(999)}</span>
               <span className="text-muted-foreground text-sm line-through">
@@ -86,10 +107,12 @@ export default function Home() {
                 Save 33%
               </span>
             </div>
+
+            {/* Action Buttons Row */}
             <div className="mt-8 flex flex-wrap gap-3">
               {trial && <TrialSetButton product={trial} />}
               <Link
-                href={`/parfums/${trial?.slug ?? "trial-set-06"}`}
+                href={trialUrl}
                 className="border-foreground/30 hover:bg-foreground hover:text-background border px-8 py-4 text-xs font-bold tracking-[0.25em] uppercase transition-colors"
               >
                 Details
