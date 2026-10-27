@@ -140,7 +140,7 @@ export const products: Product[] = [
       {
         id: "p6-set",
         size: "6 x 2 ML",
-        price: 999,
+        price: 1,
         compareAt: 1499,
         inStock: true,
       },
