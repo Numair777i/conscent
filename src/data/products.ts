@@ -5,6 +5,7 @@ import bottle2 from "@/assets/bottle-2.jpg";
 import bottle3 from "@/assets/bottle-3.jpg";
 import bottle4 from "@/assets/bottle-4.jpg";
 import SA from "@/assets/secret-affair-single.webp";
+import SAbox from "@/assets/secret-affair-box.webp";
 import liar from "@/assets/Liar.webp";
 import lumora from "@/assets/Lumora.webp";
 import satester from "@/assets/Secret-Affair.webp";
@@ -137,6 +138,7 @@ export const products: Product[] = [
     intensity: "MEDIUM",
     gender: "MASC",
     image: SA,
+    images: [SA, SAbox],
     notes: [
       { layer: "top", name: "Sweet Plum" },
       { layer: "top", name: "Cardamom" },
@@ -155,16 +157,16 @@ export const products: Product[] = [
   },
   {
     id: "p6",
-    slug: "trial-set-06",
-    name: "TRIAL SET / 06",
-    tagline: "Six vials. Find your signature.",
+    slug: "trial-set",
+    name: "TRIAL SET",
+    tagline: "3 vials. Find your signature.",
     description:
       "All six CONSCENT house scents in 8ML travel vials. Credit the full amount against your first full-size bottle.",
-    family: "DISCOVERY",
+    family: "Explore",
     intensity: "MEDIUM",
     gender: "UNISEX",
     image: tester1,
-    images: [tester2, lumora, satester, liar],
+    images: [tester1, tester2, lumora, satester, liar],
     badge: "STARTER",
     notes: [
       { layer: "top", name: "Mixed Citrus" },

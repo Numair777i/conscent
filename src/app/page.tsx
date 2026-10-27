@@ -44,8 +44,8 @@ export default function Home() {
     <div className="flex flex-col">
       <HeroSlider />
 
-      {/* Value Badges Banner */}
-      <section className="bg-ink text-background py-4 border-b border-white/5">
+      {/* Value Badges Banner (Hidden on mobile to eliminate duplication; visible on desktop) */}
+      <section className="hidden md:block bg-ink text-background py-4 border-b border-white/5">
         <div className="mx-auto grid w-full max-w-[1400px] grid-cols-2 gap-4 px-4 text-center text-[10px] font-semibold tracking-[0.2em] uppercase sm:px-6 md:grid-cols-4 select-none">
           <span>Free express shipping over ₹999</span>
           <span>Cash on delivery available</span>
@@ -65,7 +65,7 @@ export default function Home() {
           >
             <Image
               src={tester1}
-              alt="CONSCENT Discovery Trial Set of six vials"
+              alt="CONSCENT Trial Set of six vials"
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover transition-transform duration-500 group-hover:scale-105"

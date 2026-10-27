@@ -10,12 +10,20 @@ import { useHydrated } from "@/hooks/use-hydrated";
 const links = [
   { href: "/", label: "Home" },
   { href: "/parfums", label: "Parfums" },
-  { href: "/parfums/trial-set-06", label: "Discovery" },
+  { href: "/parfums/trial-set", label: "Trial-Set" },
   { href: "/track", label: "Track Order" },
 ] as const;
 
+const mobileAnnouncements = [
+  "Free express shipping over ₹999",
+  "Cash on delivery available",
+  "8–12 hr extrait projection",
+];
+
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [announcementIdx, setAnnouncementIdx] = useState(0);
+
   const items = useCart((s) => s.items);
   const openCart = useCart((s) => s.open);
   const hydrated = useHydrated();
@@ -28,6 +36,14 @@ export function Navbar() {
 
   const accountHref = isAuthenticated ? "/account" : "/account/login";
   const accountLabel = isAuthenticated ? "Account" : "Login";
+
+  // Cycle mobile announcements every 3 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAnnouncementIdx((prev) => (prev + 1) % mobileAnnouncements.length);
+    }, 3000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Prevent background scrolling when mobile menu is open
   useEffect(() => {
@@ -45,7 +61,18 @@ export function Navbar() {
     <header className="sticky top-0 z-50 w-full bg-ink text-background shadow-xs">
       {/* Announcement Bar */}
       <div className="bg-brand text-brand-foreground overflow-hidden py-1.5 border-b border-black/10">
-        <div className="marquee-track flex whitespace-nowrap text-[11px] font-semibold tracking-[0.25em] uppercase select-none">
+        {/* Mobile: Centered, readable rotating text */}
+        <div className="flex md:hidden items-center justify-center h-4.5 px-4 text-center">
+          <span
+            key={announcementIdx}
+            className="text-[10px] font-bold tracking-[0.2em] uppercase truncate animate-in fade-in slide-in-from-bottom-1 duration-300"
+          >
+            {mobileAnnouncements[announcementIdx]}
+          </span>
+        </div>
+
+        {/* Desktop: Smooth continuous scrolling marquee */}
+        <div className="hidden md:flex marquee-track whitespace-nowrap text-[11px] font-semibold tracking-[0.25em] uppercase select-none">
           {Array.from({ length: 2 }).map((_, i) => (
             <span key={i} className="flex shrink-0">
               {Array.from({ length: 4 }).map((__, j) => (
