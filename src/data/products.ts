@@ -158,6 +158,7 @@ export const products: Product[] = [
   {
     id: "p6",
     slug: "trial-set",
+    badge: "STARTER_PACK",
     name: "TRIAL SET",
     tagline: "3 vials. Find your signature.",
     description:
@@ -167,7 +168,6 @@ export const products: Product[] = [
     gender: "UNISEX",
     image: tester1,
     images: [tester1, tester2, lumora, satester, liar],
-    badge: "STARTER",
     notes: [
       { layer: "top", name: "Mixed Citrus" },
       { layer: "heart", name: "Mixed Florals" },

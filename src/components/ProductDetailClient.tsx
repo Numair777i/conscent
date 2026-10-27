@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { formatINR } from "@/lib/utils";
 import { useCart } from "@/lib/store/cart";
 import type { Product } from "@/types";
+import { ProductBadge } from "@/components/ProductBadge";
 
 type ProductVariant = Product["variants"][number];
 
@@ -26,9 +27,8 @@ interface ProductDetailClientProps {
 export function ProductDetailClient({ product }: ProductDetailClientProps) {
   // Normalize gallery: prefer product.images if populated; fallback to product.image
   const galleryImages: (string | StaticImageData)[] =
-    (product as { images?: (string | StaticImageData)[] }).images &&
-    (product as { images?: (string | StaticImageData)[] }).images!.length > 0
-      ? (product as { images?: (string | StaticImageData)[] }).images!
+    product.images && product.images.length > 0
+      ? product.images
       : [product.image];
 
   const [activeImage, setActiveImage] = useState<string | StaticImageData>(
@@ -73,11 +73,6 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
         <div className="flex flex-col gap-4">
           {/* Main Hero Stage */}
           <div className="border border-border bg-card relative aspect-4/5 w-full overflow-hidden">
-            {product.badge && (
-              <span className="bg-brand text-brand-foreground absolute top-0 left-0 z-10 px-3 py-1 text-[11px] font-bold tracking-[0.25em] uppercase">
-                {product.badge}
-              </span>
-            )}
             <Image
               src={activeImage}
               alt={product.name}
@@ -121,6 +116,13 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
 
         {/* Product Details Section */}
         <div className="flex flex-col justify-center">
+          {/* Status Badge Pill (Above Title) */}
+          {product.badge && (
+            <div className="mb-3">
+              <ProductBadge badge={product.badge} />
+            </div>
+          )}
+
           <span className="text-xs font-bold tracking-[0.25em] uppercase text-brand">
             {product.family} · {product.intensity} INTENSITY
           </span>
