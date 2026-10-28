@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { Viewport } from "next";
 import Script from "next/script";
 import { Bebas_Neue, Inter } from "next/font/google";
 import "./globals.css";
@@ -26,17 +27,28 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_APP_URL || "https://www.conscentfragrances.com",
   ),
   title: {
-    default: "CONSCENT — Loud Fragrance",
+    default: "CONSCENT Fragrances",
     template: "%s | CONSCENT",
   },
   description:
-    "Bold artisan extrait de parfum and high-concentration fragrances crafted in small batches.",
+    "Bold artisan extrait de parfum and high-concentration fragrances crafted in small batches in India. Long-lasting, high-projection perfumery.",
+  keywords: [
+    "CONSCENT",
+    "CONSCENT Fragrances",
+    "extrait de parfum India",
+    "artisan perfume",
+    "long lasting perfume",
+    "discovery set perfume",
+  ],
+  alternates: {
+    canonical: "https://www.conscentfragrances.com",
+  },
   openGraph: {
     title: "CONSCENT — Loud Fragrance",
     description:
       "Extrait de parfum engineered for projection. Handcrafted in India.",
     url: "https://www.conscentfragrances.com",
-    siteName: "CONSCENT",
+    siteName: "CONSCENT Fragrances",
     locale: "en_IN",
     type: "website",
     images: [
@@ -55,8 +67,20 @@ export const metadata: Metadata = {
       "Extrait de parfum engineered for projection. Handcrafted in India.",
   },
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/icon.png", sizes: "865x865", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover", // Tells Safari to use the full hardware display
 };
 
 export default function RootLayout({
