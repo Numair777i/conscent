@@ -129,7 +129,8 @@ export default function CheckoutPage() {
 
   const subtotal = cartSubtotal(items);
   // Aligned with unified store rule: Free shipping on ₹999+
-  const shipping = subtotal === 0 || subtotal >= 999 ? 0 : 99;
+  // const shipping = subtotal === 0 || subtotal >= 999 ? 0 : 99;
+  const shipping = 0; // Temporarily 0 for testing
   const total = subtotal + shipping;
 
   const [formData, setFormData] = useState({

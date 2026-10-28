@@ -90,8 +90,10 @@ export async function POST(req: NextRequest) {
     });
 
     // Unified store rule: Free shipping on ₹999+
-    const shipping = verifiedSubtotal >= 999 || verifiedSubtotal === 0 ? 0 : 99;
-    const total = verifiedSubtotal + shipping;
+    // const shipping = verifiedSubtotal >= 999 || verifiedSubtotal === 0 ? 0 : 99;
+    // const total = verifiedSubtotal + shipping;
+    const shipping = 0; // Temporarily 0 for ₹1 live test
+    const total = verifiedSubtotal + shipping; // 1 + 0 = 1 (100 paise)
 
     const customOrderId = `CON-${Math.floor(100000 + Math.random() * 900000)}`;
 
