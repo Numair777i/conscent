@@ -97,7 +97,7 @@ export const cartCount = (items: CartItem[]): number =>
 
 export const calculateShipping = (subtotal: number): number => {
   if (subtotal === 0) return 0;
-  return subtotal >= 999 ? 0 : 99; // Standard CONSCENT rule: Free shipping over ₹999
+  return 0; // Temporarily free shipping for ₹1 live test
 };
 
 export const cartGrandTotal = (
