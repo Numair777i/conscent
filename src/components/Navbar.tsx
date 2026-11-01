@@ -3,10 +3,33 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion, LayoutGroup } from "framer-motion";
 import { Menu, ShoppingBag, User, X } from "lucide-react";
 import { cartCount, useCart } from "@/lib/store/cart";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
+
+// ==========================================
+// SPEED & TIMING CONTROLS FOR BOTH PILLS
+// ==========================================
+// Adjust `stiffness`, `damping`, or switch to `duration` (in seconds)
+const activePillTransition = {
+  type: "spring" as const,
+  stiffness: 300, // Higher = faster & more aggressive launch. (Try 300 for slow, 700 for ultra-fast)
+  damping: 20, // Controls bounce/overshoot. (Higher = less wobble, lower = more bounce)
+  mass: 0.7, // Lighter weight feel
+  // To use fixed seconds instead of spring physics, uncomment this:
+  // duration: 0.25, ease: [0.16, 1, 0.3, 1],
+};
+
+const hoverPillTransition = {
+  type: "spring" as const,
+  stiffness: 400, // Speed of the grey hover gliding between tabs
+  damping: 30, // Smooth settling
+  mass: 0.5,
+  // To use fixed seconds instead of spring physics, uncomment this:
+  // duration: 0.2, ease: [0.16, 1, 0.3, 1],
+};
 
 const links = [
   { href: "/", label: "Home" },
@@ -23,18 +46,31 @@ const mobileAnnouncements = [
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [hoveredHref, setHoveredHref] = useState<string | null>(null);
   const [announcementIdx, setAnnouncementIdx] = useState(0);
 
   const pathname = usePathname();
-  const [prevPathname, setPrevPathname] = useState(pathname);
-  const [instantActiveHref, setInstantActiveHref] = useState<string | null>(
-    null,
-  );
 
+  // Instant visual feedback state for zero-latency clicks
+  const [instantHref, setInstantHref] = useState<string | null>(null);
+  const [prevPathname, setPrevPathname] = useState(pathname);
+
+  // Synchronous state reset during render — completely satisfies React & ESLint without useEffect
   if (prevPathname !== pathname) {
     setPrevPathname(pathname);
-    setInstantActiveHref(null);
+    setInstantHref(null);
   }
+
+  // Derive active route from pathname
+  const getRouteHref = () => {
+    if (pathname === "/") return "/";
+    if (pathname.startsWith("/parfums/trial-set")) return "/parfums/trial-set";
+    if (pathname.startsWith("/parfums")) return "/parfums";
+    if (pathname.startsWith("/track")) return "/track";
+    return pathname;
+  };
+
+  const activeHref = instantHref ?? getRouteHref();
 
   const items = useCart((s) => s.items);
   const openCart = useCart((s) => s.open);
@@ -42,24 +78,10 @@ export function Navbar() {
   const hydrated = useHydrated();
   const count = hydrated ? cartCount(items) : 0;
 
-  const isLinkActive = (href: string) => {
-    if (instantActiveHref === href) return true;
-    if (href === "/") return pathname === "/";
-    if (href === "/parfums") {
-      return (
-        pathname.startsWith("/parfums") &&
-        !pathname.startsWith("/parfums/trial-set")
-      );
-    }
-    return pathname.startsWith(href);
-  };
+  const isAccountActive = pathname.startsWith("/account");
 
-  const isAccountActive =
-    instantActiveHref === "/account" || pathname.startsWith("/account");
-
-  // Shared tactile class for instant zero-delay touch down & hover
   const tactileBtnClass =
-    "select-none touch-manipulation cursor-pointer transition-all duration-150 active:scale-95 active:bg-white active:text-black";
+    "select-none touch-manipulation cursor-pointer transition-transform duration-100 active:scale-95";
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -107,10 +129,10 @@ export function Navbar() {
 
       {/* Main Navbar */}
       <div className="mx-auto flex h-16 w-full max-w-[1400px] items-center justify-between px-4 sm:px-6">
-        {/* Mobile menu trigger: Instantly flashes white on touch down */}
+        {/* Mobile menu trigger */}
         <button
           className={cn(
-            "-ml-2 flex size-9 items-center justify-center rounded-full transition-all duration-150 md:hidden",
+            "-ml-2 flex size-9 items-center justify-center rounded-full md:hidden",
             tactileBtnClass,
             mobileOpen
               ? "bg-white text-black font-extrabold shadow-sm"
@@ -126,43 +148,71 @@ export function Navbar() {
         {/* Brand Logo */}
         <Link
           href="/"
+          onPointerDown={() => setInstantHref("/")}
           className="font-heading text-2xl sm:text-3xl tracking-[0.18em] uppercase font-black cursor-pointer active:opacity-80 transition-opacity"
         >
           CONS<span className="text-brand">CENT</span>
         </Link>
 
-        {/* Desktop Links */}
-        <nav className="hidden items-center gap-2 md:flex">
-          {links.map((l) => {
-            const active = isLinkActive(l.href);
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                onPointerDown={() => setInstantActiveHref(l.href)}
-                className={cn(
-                  "px-4 py-1.5 text-xs font-semibold tracking-[0.22em] uppercase rounded-full transition-all duration-150",
-                  tactileBtnClass,
-                  active
-                    ? "bg-white text-black font-extrabold"
-                    : "text-background/80 hover:text-white hover:bg-white/10",
-                )}
-              >
-                {l.label}
-              </Link>
-            );
-          })}
-        </nav>
+        {/* Desktop Links with Expanded Hit-Box & Zero-Delay Sliding Pills */}
+        <LayoutGroup id="desktop-navbar">
+          <nav
+            className="hidden items-center gap-1 md:flex py-3.5 -my-3.5"
+            onMouseLeave={() => setHoveredHref(null)}
+          >
+            {links.map((l) => {
+              const isActive = activeHref === l.href;
+              const isHovered = hoveredHref === l.href;
+
+              return (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  onPointerDown={() => setInstantHref(l.href)}
+                  onMouseEnter={() => setHoveredHref(l.href)}
+                  className={cn(
+                    // Visual text sizing & pill dimensions
+                    "relative px-4 py-1.5 text-xs font-semibold tracking-[0.22em] uppercase rounded-full select-none touch-manipulation z-10 transition-colors duration-150",
+                    // Invisible hit-area expansion (extends 12px above and below, and fills gaps)
+                    "before:absolute before:-inset-y-3 before:-inset-x-1 before:content-[''] before:z-0",
+                    isActive
+                      ? "text-black font-extrabold"
+                      : "text-background/80 hover:text-white",
+                  )}
+                >
+                  {/* Active Solid White Sliding Pill (Keeps original compact size) */}
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-sliding-pill"
+                      className="absolute inset-0 bg-white rounded-full -z-10 shadow-sm pointer-events-none"
+                      transition={activePillTransition}
+                    />
+                  )}
+
+                  {/* Translucent Grey Hover Pill (Keeps original compact size) */}
+                  {!isActive && isHovered && (
+                    <motion.span
+                      layoutId="nav-hover-pill"
+                      className="absolute inset-0 bg-white/10 rounded-full -z-10 pointer-events-none"
+                      transition={hoverPillTransition}
+                    />
+                  )}
+
+                  <span className="relative z-10">{l.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </LayoutGroup>
 
         {/* Right Actions */}
         <div className="flex items-center gap-1 sm:gap-2">
-          {/* Account Button: Instantly switches to white pill on touch down */}
+          {/* Account Button */}
           <Link
             href="/account"
             aria-label="Account"
-            onPointerDown={() => setInstantActiveHref("/account")}
             className={cn(
-              "flex items-center gap-2 px-3.5 py-1.5 rounded-full transition-all duration-150",
+              "flex items-center gap-2 px-3.5 py-1.5 rounded-full",
               tactileBtnClass,
               isAccountActive
                 ? "bg-white text-black font-extrabold"
@@ -175,12 +225,12 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Bag Button: Instantly flashes white on touch down */}
+          {/* Bag Button */}
           <button
             onClick={openCart}
             aria-label="Open shopping bag"
             className={cn(
-              "relative flex items-center gap-2 px-3.5 py-1.5 rounded-full transition-all duration-150",
+              "relative flex items-center gap-2 px-3.5 py-1.5 rounded-full",
               tactileBtnClass,
               isCartOpen
                 ? "bg-white text-black font-extrabold"
@@ -200,19 +250,18 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Drawer Navigation: Instantly flashes white on finger touch down */}
+      {/* Mobile Drawer Navigation */}
       {mobileOpen && (
         <nav className="border-t border-white/10 md:hidden bg-ink/95 backdrop-blur-md px-4 py-4 space-y-1.5">
           {links.map((l) => {
-            const active = isLinkActive(l.href);
+            const active = activeHref === l.href;
             return (
               <Link
                 key={l.href}
                 href={l.href}
-                onPointerDown={() => setInstantActiveHref(l.href)}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "block px-4 py-2.5 text-xs font-semibold tracking-[0.22em] uppercase rounded-full transition-all duration-150",
+                  "block px-4 py-2.5 text-xs font-semibold tracking-[0.22em] uppercase rounded-full",
                   tactileBtnClass,
                   active
                     ? "bg-white text-black font-extrabold"
