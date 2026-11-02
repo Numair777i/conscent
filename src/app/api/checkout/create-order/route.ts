@@ -3,7 +3,9 @@ import Razorpay from "razorpay";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
+import crypto from "crypto";
 import { products } from "@/data/products";
+import { calculateShipping } from "@/lib/shipping";
 
 interface ClientOrderItem {
   productId: string;
@@ -21,6 +23,12 @@ interface CustomerPayload {
   state: string;
   pincode: string;
 }
+
+const MAX_QTY_PER_ITEM = 10;
+const MAX_ITEMS_PER_ORDER = 20;
+
+// Errors caused by a bad request (not by our server) -> HTTP 400
+class OrderValidationError extends Error {}
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,7 +53,12 @@ export async function POST(req: NextRequest) {
     const customer: CustomerPayload = body?.customer;
     const items: ClientOrderItem[] = body?.items;
 
-    if (!customer || !Array.isArray(items) || items.length === 0) {
+    if (
+      !customer ||
+      !Array.isArray(items) ||
+      items.length === 0 ||
+      items.length > MAX_ITEMS_PER_ORDER
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -60,19 +73,31 @@ export async function POST(req: NextRequest) {
     const verifiedItems = items.map((clientItem) => {
       const dbProduct = products.find((p) => p.id === clientItem.productId);
       if (!dbProduct) {
-        throw new Error(`Product not found: ${clientItem.name}`);
+        throw new OrderValidationError(`Product not found: ${clientItem.name}`);
       }
 
       const dbVariant = dbProduct.variants.find(
         (v) => v.size.toLowerCase() === clientItem.size.toLowerCase(),
       );
       if (!dbVariant) {
-        throw new Error(
+        throw new OrderValidationError(
           `Variant ${clientItem.size} not found for: ${clientItem.name}`,
         );
       }
+      if (dbVariant.inStock === false) {
+        throw new OrderValidationError(`${dbProduct.name} is out of stock`);
+      }
 
-      const safeQty = Math.max(1, Math.floor(clientItem.qty || 1));
+      const safeQty = Math.floor(Number(clientItem.qty));
+      if (
+        !Number.isFinite(safeQty) ||
+        safeQty < 1 ||
+        safeQty > MAX_QTY_PER_ITEM
+      ) {
+        throw new OrderValidationError(
+          `Quantity for ${dbProduct.name} must be between 1 and ${MAX_QTY_PER_ITEM}`,
+        );
+      }
       verifiedSubtotal += dbVariant.price * safeQty;
 
       return {
@@ -89,15 +114,14 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // Unified store rule: Free shipping on ₹999+
-    // const shipping = verifiedSubtotal >= 999 || verifiedSubtotal === 0 ? 0 : 99;
-    // const total = verifiedSubtotal + shipping;
-    const shipping = 0; // Temporarily 0 for ₹1 live test
-    const total = verifiedSubtotal + shipping; // 1 + 0 = 1 (100 paise)
+    // Shipping comes from the single rule in lib/shipping.ts
+    const shipping = calculateShipping(verifiedSubtotal);
+    const total = verifiedSubtotal + shipping;
 
-    const customOrderId = `CON-${Math.floor(100000 + Math.random() * 900000)}`;
+    // Cryptographically random 6-digit id (Math.random is predictable)
+    const customOrderId = `CON-${crypto.randomInt(100000, 1000000)}`;
 
-    // 2. Create order on Razorpay (paise: ₹1 = 100 paise)
+    // 2. Create order on Razorpay (amount is in paise)
     const razorpayOrder = await razorpay.orders.create({
       amount: Math.round(total * 100),
       currency: "INR",
@@ -137,11 +161,16 @@ export async function POST(req: NextRequest) {
       dbOrderId: newOrder.orderId,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to create order";
+    if (error instanceof OrderValidationError) {
+      return NextResponse.json(
+        { success: false, error: error.message },
+        { status: 400 },
+      );
+    }
     console.error("Order creation error:", error);
+    // Do not leak internal error text to the browser
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: "Failed to create order" },
       { status: 500 },
     );
   }

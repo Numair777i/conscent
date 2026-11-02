@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
 import { Resend } from "resend";
 import { isAdminEmail } from "@/lib/admin";
+import { escapeHtml } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,16 @@ export async function GET() {
   }
 }
 
+const VALID_STATUSES = [
+  "ORDER_PLACED",
+  "PACKED",
+  "IN_TRANSIT",
+  "OUT_FOR_DELIVERY",
+  "DELIVERED",
+  "CANCELLED",
+  "RTO",
+];
+
 export async function PATCH(req: NextRequest) {
   try {
     const isAuthed = await isAuthorizedAdmin();
@@ -66,7 +77,13 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (shippingStatus) {
+    if (shippingStatus !== undefined && shippingStatus !== null) {
+      if (!VALID_STATUSES.includes(shippingStatus)) {
+        return NextResponse.json(
+          { error: "Invalid shippingStatus" },
+          { status: 400 },
+        );
+      }
       order.shippingStatus = shippingStatus;
     }
 
@@ -111,7 +128,7 @@ export async function PATCH(req: NextRequest) {
     // Send Status Update Email via Resend
     if (process.env.RESEND_API_KEY && recipientEmail) {
       const statusTitle =
-        shippingStatus === "SHIPPED"
+        shippingStatus === "IN_TRANSIT"
           ? "Shipment Dispatched"
           : shippingStatus === "OUT_FOR_DELIVERY"
             ? "Out for Delivery Today"
@@ -119,16 +136,16 @@ export async function PATCH(req: NextRequest) {
               ? "Package Delivered"
               : shippingStatus === "PACKED"
                 ? "Order Packed & Ready"
-                : `Order Status: ${shippingStatus}`;
+                : `Order Status: ${escapeHtml(shippingStatus)}`;
 
       const statusDescription =
-        shippingStatus === "SHIPPED"
+        shippingStatus === "IN_TRANSIT"
           ? "Your bespoke parfum blend has been packed and handed over to our courier partner. It is now in transit from our New Delhi facility."
           : shippingStatus === "DELIVERED"
             ? "Your CONSCENT package has been delivered. We hope you love the fragrance!"
             : shippingStatus === "PACKED"
               ? "Your fragrance bottle has been inspected, packed, and sealed. Pickup is scheduled shortly."
-              : `Your order status has been updated to: <strong>${shippingStatus}</strong>.`;
+              : `Your order status has been updated to: <strong>${escapeHtml(shippingStatus)}</strong>.`;
 
       try {
         await resend.emails.send({
@@ -152,17 +169,17 @@ export async function PATCH(req: NextRequest) {
                 </div>
 
                 <div style="background-color: #141414; border: 1px solid #262626; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
-                  <p style="margin: 0; font-size: 14px; color: #ddd;"><strong>Order ID:</strong> ${updatedOrder.orderId}</p>
-                  <p style="margin: 6px 0 0; font-size: 14px; color: #ddd;"><strong>Tracking Number (AWB):</strong> <span style="color: #e11d48; font-family: monospace; font-size: 14px; font-weight: bold;">${activeTrackingNo}</span></p>
-                  <p style="margin: 6px 0 0; font-size: 14px; color: #aaa;"><strong>Current Status:</strong> <span style="color: #22c55e; font-weight: bold;">${shippingStatus}</span></p>
+                  <p style="margin: 0; font-size: 14px; color: #ddd;"><strong>Order ID:</strong> ${escapeHtml(updatedOrder.orderId)}</p>
+                  <p style="margin: 6px 0 0; font-size: 14px; color: #ddd;"><strong>Tracking Number (AWB):</strong> <span style="color: #e11d48; font-family: monospace; font-size: 14px; font-weight: bold;">${escapeHtml(activeTrackingNo)}</span></p>
+                  <p style="margin: 6px 0 0; font-size: 14px; color: #aaa;"><strong>Current Status:</strong> <span style="color: #22c55e; font-weight: bold;">${escapeHtml(shippingStatus)}</span></p>
                 </div>
 
                 <p style="color: #cccccc; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0;">
-                  Hey <strong>${customerName}</strong>, ${statusDescription}
+                  Hey <strong>${escapeHtml(customerName)}</strong>, ${statusDescription}
                 </p>
 
                 <div style="text-align: center; margin: 32px 0;">
-                  <a href="${appUrl}/track?orderId=${updatedOrder.orderId}" 
+                  <a href="${appUrl}/track?orderId=${encodeURIComponent(updatedOrder.orderId)}" 
                      style="background-color: #ffffff; color: #000000; text-decoration: none; padding: 12px 28px; font-size: 12px; font-weight: bold; letter-spacing: 0.15em; text-transform: uppercase; border-radius: 4px; display: inline-block;">
                     Track Live Shipment
                   </a>

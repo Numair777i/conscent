@@ -42,7 +42,7 @@ export const products: Product[] = [
     ],
   },
   {
-    id: "",
+    id: "p2",
     slug: "lumora",
     name: "Lumora",
     tagline: "Sweet heat with a mean streak.",
@@ -140,7 +140,7 @@ export const products: Product[] = [
       {
         id: "p6-set",
         size: "6 x 2 ML",
-        price: 1,
+        price: 999,
         compareAt: 1499,
         inStock: true,
       },

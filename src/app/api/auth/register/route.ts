@@ -2,11 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import clientPromise from "@/lib/mongodb";
 import { isAdminEmail } from "@/lib/admin";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = rateLimit(
+      `register:${getClientIp(req)}`,
+      5,
+      60 * 60 * 1000,
+    );
+    if (!limited.ok) {
+      return NextResponse.json(
+        { success: false, error: "Too many attempts. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limited.retryAfterSec) },
+        },
+      );
+    }
+
     const body = await req.json();
     const name = body?.name?.trim();
     const email = body?.email?.toLowerCase().trim();
@@ -38,11 +54,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!password || typeof password !== "string" || password.length < 6) {
+    if (!password || typeof password !== "string" || password.length < 8) {
       return NextResponse.json(
         {
           success: false,
-          error: "Password must be at least 6 characters long.",
+          error: "Password must be at least 8 characters long.",
         },
         { status: 400 },
       );

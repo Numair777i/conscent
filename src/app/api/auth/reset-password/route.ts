@@ -1,9 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import clientPromise from "@/lib/mongodb";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = rateLimit(`reset:${getClientIp(req)}`, 10, 60 * 60 * 1000);
+    if (!limited.ok) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limited.retryAfterSec) },
+        },
+      );
+    }
+
     const { token, email, password } = await req.json();
 
     if (!token || !email || !password) {
@@ -13,9 +25,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (typeof password !== "string" || password.length < 6) {
+    if (typeof password !== "string" || password.length < 8) {
       return NextResponse.json(
-        { error: "Password must be at least 6 characters long." },
+        { error: "Password must be at least 8 characters long." },
         { status: 400 },
       );
     }

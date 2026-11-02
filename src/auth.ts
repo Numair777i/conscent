@@ -4,6 +4,8 @@ import Credentials from "next-auth/providers/credentials";
 import { MongoDBAdapter } from "@auth/mongodb-adapter";
 import clientPromise from "@/lib/mongodb";
 import bcrypt from "bcryptjs";
+import { isAdminEmail } from "@/lib/admin";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 // Extend session user types inline
 declare module "next-auth" {
@@ -21,6 +23,11 @@ declare module "next-auth" {
   }
 }
 
+const googleId = process.env.AUTH_GOOGLE_ID || process.env.GOOGLE_CLIENT_ID;
+const googleSecret =
+  process.env.AUTH_GOOGLE_SECRET || process.env.GOOGLE_CLIENT_SECRET;
+
+// ONE auth config for the whole app. The route file only re-exports its handlers.
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: MongoDBAdapter(clientPromise),
   session: { strategy: "jwt" },
@@ -29,12 +36,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error: "/account/login",
   },
   providers: [
-    ...(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET
+    ...(googleId && googleSecret
       ? [
           Google({
-            clientId: process.env.AUTH_GOOGLE_ID,
-            clientSecret: process.env.AUTH_GOOGLE_SECRET,
-            allowDangerousEmailAccountLinking: true,
+            clientId: googleId,
+            clientSecret: googleSecret,
+            // allowDangerousEmailAccountLinking is intentionally NOT set:
+            // sign-up does not verify email ownership, so auto-linking a Google
+            // login to an existing password account could be abused.
           }),
         ]
       : []),
@@ -45,12 +54,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
 
         const normalizedEmail = String(credentials.email).toLowerCase().trim();
+
+        // Slow down password guessing: per email and per IP
+        const ip = getClientIp(request);
+        if (
+          !rateLimit(`login-email:${normalizedEmail}`, 10, 15 * 60 * 1000).ok ||
+          !rateLimit(`login-ip:${ip}`, 30, 15 * 60 * 1000).ok
+        ) {
+          return null;
+        }
+
         const client = await clientPromise;
         const db = client.db();
 
@@ -59,19 +78,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         });
 
         if (!user || !user.password) {
-          console.warn(
-            "Credentials authorization failed: User not found or has no password",
-          );
           return null;
         }
 
         const isValid = await bcrypt.compare(
           String(credentials.password),
-          user.password,
+          String(user.password),
         );
 
         if (!isValid) {
-          console.warn("Credentials authorization failed: Incorrect password");
           return null;
         }
 
@@ -88,7 +103,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = user.role || "customer";
+        // Admin is decided by the single admin email (see lib/admin.ts)
+        token.role = isAdminEmail(user.email)
+          ? "admin"
+          : user.role || "customer";
       }
       return token;
     },
@@ -100,8 +118,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-  secret:
-    process.env.AUTH_SECRET ||
-    process.env.NEXTAUTH_SECRET ||
-    "conscent-secret-key-123456",
+  // No hardcoded fallback: Auth.js reads AUTH_SECRET (or NEXTAUTH_SECRET) itself,
+  // and refuses to run in production if it is missing.
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
 });

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { CartItem, Product, Variant } from "@/types";
+import { calculateShipping } from "@/lib/shipping";
 
 interface CartState {
   items: CartItem[];
@@ -95,10 +96,7 @@ export const cartSubtotal = (items: CartItem[]): number =>
 export const cartCount = (items: CartItem[]): number =>
   items.reduce((sum, i) => sum + i.qty, 0);
 
-export const calculateShipping = (subtotal: number): number => {
-  if (subtotal === 0) return 0;
-  return 0; // Temporarily free shipping for ₹1 live test
-};
+export { calculateShipping };
 
 export const cartGrandTotal = (
   items: CartItem[],

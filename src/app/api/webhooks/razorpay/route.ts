@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
 import { Resend } from "resend";
-import { formatINR } from "@/lib/utils";
+import { formatINR, escapeHtml } from "@/lib/utils";
 
 interface OrderItem {
   name: string;
@@ -72,23 +72,20 @@ export async function POST(req: NextRequest) {
 
       await connectDB();
 
-      // Find order by razorpayOrderId
-      const order = await Order.findOne({ razorpayOrderId });
+      // Atomic "mark as paid": if verify already did it (or another webhook
+      // delivery is running), this returns null and we skip the email.
+      const order = await Order.findOneAndUpdate(
+        { razorpayOrderId, paymentStatus: { $ne: "PAID" } },
+        {
+          $set: {
+            paymentStatus: "PAID",
+            ...(razorpayPaymentId ? { razorpayPaymentId } : {}),
+          },
+        },
+        { new: true },
+      );
 
-      if (order && order.paymentStatus !== "PAID") {
-        const autoAWB = "DLV" + Date.now().toString().slice(-8);
-
-        order.paymentStatus = "PAID";
-        if (razorpayPaymentId) {
-          order.razorpayPaymentId = razorpayPaymentId;
-        }
-        order.shippingStatus = "ORDER_PLACED";
-        if (!order.trackingNumber) {
-          order.trackingNumber = autoAWB;
-        }
-
-        await order.save();
-
+      if (order) {
         // 4. Send Confirmation Email via Resend
         if (process.env.RESEND_API_KEY && order.customer?.email) {
           try {
@@ -96,11 +93,11 @@ export async function POST(req: NextRequest) {
               .map(
                 (i: OrderItem) =>
                   '<tr><td style="padding: 10px 0; border-bottom: 1px solid #262626; color: #f5f5f5;"><strong style="text-transform: uppercase;">' +
-                  i.name +
+                  escapeHtml(i.name) +
                   '</strong> <span style="color: #888; font-size: 12px;">(' +
-                  i.size +
+                  escapeHtml(i.size) +
                   ") × " +
-                  i.qty +
+                  Number(i.qty) +
                   '</span></td><td style="padding: 10px 0; border-bottom: 1px solid #262626; text-align: right; color: #f5f5f5; font-weight: bold;">' +
                   formatINR(i.price * i.qty) +
                   "</td></tr>",
@@ -113,7 +110,8 @@ export async function POST(req: NextRequest) {
             await resend.emails.send({
               from: fromEmail,
               to: order.customer.email,
-              subject: "Confirmed: Order " + order.orderId + " — CONSCENT",
+              subject:
+                "Confirmed: Order " + escapeHtml(order.orderId) + " — CONSCENT",
               html:
                 '<div style="font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; max-width: 600px; margin: auto; padding: 32px 24px; background-color: #0c0a09; color: #f5f5f5; border: 1px solid #262626; border-radius: 4px;">' +
                 '<h1 style="letter-spacing: 0.2em; font-size: 26px; text-transform: uppercase; margin: 0 0 4px; color: #ffffff;">CONSCENT</h1>' +
@@ -121,12 +119,14 @@ export async function POST(req: NextRequest) {
                 '<div style="background-color: #171717; padding: 16px; border: 1px solid #262626; margin-bottom: 24px;">' +
                 '<p style="margin: 0; font-size: 13px; color: #a1a1aa;">ORDER REFERENCE</p>' +
                 '<p style="margin: 4px 0 12px; font-size: 18px; font-weight: bold; font-family: monospace; color: #ffffff;">' +
-                order.orderId +
+                escapeHtml(order.orderId) +
                 "</p>" +
-                '<p style="margin: 0; font-size: 13px; color: #a1a1aa;">DELHIVERY AWB</p>' +
-                '<p style="margin: 4px 0 0; font-size: 15px; font-weight: bold; font-family: monospace; color: #e11d48;">' +
-                order.trackingNumber +
-                "</p>" +
+                (order.trackingNumber
+                  ? '<p style="margin: 0; font-size: 13px; color: #a1a1aa;">TRACKING NUMBER</p>' +
+                    '<p style="margin: 4px 0 0; font-size: 15px; font-weight: bold; font-family: monospace; color: #e11d48;">' +
+                    escapeHtml(order.trackingNumber) +
+                    "</p>"
+                  : "") +
                 "</div>" +
                 '<h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.15em; color: #a1a1aa; margin: 0 0 12px;">Items in Package</h3>' +
                 '<table style="width: 100%; border-collapse: collapse; font-size: 14px;"><tbody>' +

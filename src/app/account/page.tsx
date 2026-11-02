@@ -7,8 +7,13 @@ import {
   ShieldCheck,
   ArrowRight,
   LayoutDashboard,
+  TriangleAlert,
 } from "lucide-react";
 import { SignOutButton } from "@/components/Account/SignOutButton";
+import { ChangePasswordModal } from "@/components/Account/ChangePasswordModal";
+import { DeleteAccountDialog } from "@/components/Account/DeleteAccountDialog";
+import { isAdminEmail } from "@/lib/admin";
+import clientPromise from "@/lib/mongodb";
 
 export default async function AccountPage() {
   const session = await auth();
@@ -17,9 +22,18 @@ export default async function AccountPage() {
     redirect("/account/login?callbackUrl=/account");
   }
 
-  const isAdmin =
-    session.user.email?.toLowerCase().trim() ===
-    process.env.ADMIN_EMAIL?.toLowerCase().trim();
+  const isAdmin = isAdminEmail(session.user.email);
+
+  // Google-only accounts have no password, so they get no change-password form
+  const client = await clientPromise;
+  const userDoc = await client
+    .db()
+    .collection("users")
+    .findOne(
+      { email: session.user.email?.toLowerCase().trim() },
+      { projection: { password: 1 } },
+    );
+  const hasPassword = Boolean(userDoc?.password);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-16 sm:px-6 space-y-10">
@@ -39,7 +53,11 @@ export default async function AccountPage() {
         <SignOutButton />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div
+        className={`grid grid-cols-1 gap-6 ${
+          hasPassword ? "sm:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3"
+        }`}
+      >
         <Link
           href="/account/orders"
           className="group cursor-pointer p-6 border border-border bg-card hover:border-foreground/60 transition-all flex flex-col justify-between"
@@ -80,6 +98,9 @@ export default async function AccountPage() {
           </div>
         </Link>
 
+        {/* Google-only accounts have no password to change */}
+        {hasPassword && <ChangePasswordModal />}
+
         {isAdmin ? (
           <Link
             href="/admin"
@@ -118,6 +139,29 @@ export default async function AccountPage() {
           </div>
         )}
       </div>
+
+      {/* The admin account cannot be deleted, so it gets no Danger Zone */}
+      {!isAdmin && (
+        <section
+          aria-labelledby="danger-zone-heading"
+          className="flex flex-col gap-5 border border-destructive/40 bg-destructive/5 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8"
+        >
+          <div>
+            <h2
+              id="danger-zone-heading"
+              className="flex items-center gap-2 font-heading text-lg uppercase tracking-wide text-destructive"
+            >
+              <TriangleAlert className="size-5" aria-hidden="true" />
+              Danger Zone
+            </h2>
+            <p className="mt-1.5 max-w-xl text-xs leading-relaxed text-muted-foreground">
+              Permanently delete your account, saved addresses and preferences.
+              This cannot be undone.
+            </p>
+          </div>
+          <DeleteAccountDialog hasPassword={hasPassword} />
+        </section>
+      )}
     </div>
   );
 }

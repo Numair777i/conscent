@@ -5,10 +5,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { Minus, Plus, Trash2, X } from "lucide-react";
 import { formatINR } from "@/lib/utils";
+import { FREE_SHIPPING_THRESHOLD } from "@/lib/shipping";
 import { cartSubtotal, useCart } from "@/lib/store/cart";
 import { useHydrated } from "@/hooks/use-hydrated";
-
-const FREE_SHIPPING_THRESHOLD = 999;
 
 export function CartDrawer() {
   const { items, isOpen, close, setQty, removeItem } = useCart();

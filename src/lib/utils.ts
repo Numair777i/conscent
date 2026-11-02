@@ -41,3 +41,16 @@ export function formatDate(date: string | Date | undefined): string {
 export function normalizeEmail(email: string): string {
   return email.toLowerCase().trim();
 }
+
+/**
+ * Escapes text before it is placed inside HTML (emails, etc).
+ * Use it on anything a customer typed: name, address, city, phone...
+ */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
-import { auth } from "@/app/api/auth/[...nextauth]/route";
+import { auth } from "@/auth";
+import { isAdminEmail } from "@/lib/admin";
 import clientPromise from "@/lib/mongodb";
 import { makeUnsubscribeUrl } from "@/lib/unsubscribe";
 
@@ -17,9 +18,8 @@ interface SubscriberDoc {
 export async function POST(req: Request) {
   try {
     const session = await auth();
-    const userRole = (session?.user as { role?: string } | undefined)?.role;
 
-    if (!session || userRole !== "admin") {
+    if (!isAdminEmail(session?.user?.email)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

@@ -3,8 +3,7 @@ import crypto from "crypto";
 import { Resend } from "resend";
 import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
-import { Subscriber } from "@/models/Subscriber";
-import { formatINR } from "@/lib/utils";
+import { formatINR, escapeHtml } from "@/lib/utils";
 
 interface OrderItem {
   name: string;
@@ -98,22 +97,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const wasAlreadyPaid = existingOrder.paymentStatus === "PAID";
-    const autoAWB =
-      existingOrder.trackingNumber || `DLV${Date.now().toString().slice(-8)}`;
-
-    // Set payment status to PAID
-    existingOrder.paymentStatus = "PAID";
-    existingOrder.razorpayPaymentId = razorpayPaymentId;
-    if (
-      !existingOrder.shippingStatus ||
-      existingOrder.shippingStatus === "ORDER_PLACED"
-    ) {
-      existingOrder.shippingStatus = "ORDER_PLACED";
-    }
-    existingOrder.trackingNumber = autoAWB;
-
-    const updatedOrder = await existingOrder.save();
+    // Atomic "mark as paid": only ONE request (verify or webhook) can flip the order
+    // from unpaid to PAID. The other gets null back, so the confirmation email is
+    // never sent twice even if both arrive at the same moment.
+    const claimed = await Order.findOneAndUpdate(
+      { razorpayOrderId, paymentStatus: { $ne: "PAID" } },
+      { $set: { paymentStatus: "PAID", razorpayPaymentId } },
+      { new: true },
+    );
+    const wasAlreadyPaid = !claimed;
+    const updatedOrder = claimed ?? existingOrder;
 
     // 3. Resolve recipient email defensively and strictly typed
     const plainOrder = (typeof updatedOrder.toObject === "function"
@@ -141,31 +134,7 @@ export async function POST(req: NextRequest) {
       wasAlreadyPaid,
     });
 
-    // 4. Auto-enroll paying customer into Subscriber collection
-    if (recipientEmail) {
-      try {
-        await Subscriber.findOneAndUpdate(
-          { email: recipientEmail.toLowerCase() },
-          {
-            $set: {
-              email: recipientEmail.toLowerCase(),
-              name: customerName,
-              isVerified: true,
-              source: "checkout_purchase",
-              subscribedAt: new Date(),
-            },
-          },
-          { upsert: true, new: true },
-        );
-      } catch (subErr) {
-        console.error(
-          "Failed to auto-enroll customer into subscribers:",
-          subErr,
-        );
-      }
-    }
-
-    // 5. Send Confirmation Email via Resend (only if not already sent)
+    // 4. Send Confirmation Email via Resend (only if not already sent)
     if (!wasAlreadyPaid && process.env.RESEND_API_KEY && recipientEmail) {
       try {
         const itemsListHtml = (updatedOrder.items || [])
@@ -173,7 +142,7 @@ export async function POST(req: NextRequest) {
             (i: OrderItem) =>
               `<tr>
                 <td style="padding: 10px 0; border-bottom: 1px solid #222; color: #fff;">
-                  <strong>${i.name}</strong> (${i.size}) × ${i.qty}
+                  <strong>${escapeHtml(i.name)}</strong> (${escapeHtml(i.size)}) × ${Number(i.qty)}
                 </td>
                 <td style="padding: 10px 0; border-bottom: 1px solid #222; text-align: right; color: #fff; font-weight: bold;">
                   ${formatINR(i.price * i.qty)}
@@ -206,13 +175,13 @@ export async function POST(req: NextRequest) {
                 </div>
 
                 <div style="background-color: #141414; border: 1px solid #262626; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
-                  <p style="margin: 0; font-size: 14px; color: #ddd;"><strong>Order ID:</strong> ${updatedOrder.orderId}</p>
-                  <p style="margin: 6px 0 0; font-size: 14px; color: #aaa;"><strong>Payment ID:</strong> ${updatedOrder.razorpayPaymentId}</p>
+                  <p style="margin: 0; font-size: 14px; color: #ddd;"><strong>Order ID:</strong> ${escapeHtml(updatedOrder.orderId)}</p>
+                  <p style="margin: 6px 0 0; font-size: 14px; color: #aaa;"><strong>Payment ID:</strong> ${escapeHtml(updatedOrder.razorpayPaymentId)}</p>
                   <p style="margin: 6px 0 0; font-size: 14px; color: #aaa;"><strong>Shipping Mode:</strong> Surface Express Cargo</p>
                 </div>
 
                 <p style="color: #cccccc; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0;">
-                  Hey <strong>${customerName}</strong>, thank you for your order. Your fragrance is being prepared and will be dispatched from our New Delhi hub within 24 to 48 business hours.
+                  Hey <strong>${escapeHtml(customerName)}</strong>, thank you for your order. Your fragrance is being prepared and will be dispatched from our New Delhi hub within 24 to 48 business hours.
                 </p>
 
                 <h3 style="font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; color: #888888; margin: 0 0 10px 0;">
@@ -232,13 +201,13 @@ export async function POST(req: NextRequest) {
 
                 <div style="border-top: 1px solid #222222; margin-top: 24px; padding-top: 16px; font-size: 13px; color: #888;">
                   <p style="margin: 0 0 4px 0; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; color: #bbb;">Shipping To:</p>
-                  <p style="margin: 0; color: #ccc;">${customerName}</p>
-                  <p style="margin: 2px 0; color: #ccc;">${updatedOrder.customer?.address || ""}, ${updatedOrder.customer?.city || ""}, ${updatedOrder.customer?.state || ""} — ${updatedOrder.customer?.pincode || ""}</p>
-                  <p style="margin: 2px 0; color: #ccc;">Phone: +91 ${updatedOrder.customer?.phone || ""}</p>
+                  <p style="margin: 0; color: #ccc;">${escapeHtml(customerName)}</p>
+                  <p style="margin: 2px 0; color: #ccc;">${escapeHtml(updatedOrder.customer?.address)}, ${escapeHtml(updatedOrder.customer?.city)}, ${escapeHtml(updatedOrder.customer?.state)} — ${escapeHtml(updatedOrder.customer?.pincode)}</p>
+                  <p style="margin: 2px 0; color: #ccc;">Phone: +91 ${escapeHtml(updatedOrder.customer?.phone)}</p>
                 </div>
 
                 <div style="text-align: center; margin-top: 32px;">
-                  <a href="${appUrl}/track?orderId=${updatedOrder.orderId}" 
+                  <a href="${appUrl}/track?orderId=${encodeURIComponent(updatedOrder.orderId)}" 
                      style="background-color: #ffffff; color: #000000; text-decoration: none; padding: 12px 28px; font-size: 12px; font-weight: bold; letter-spacing: 0.15em; text-transform: uppercase; border-radius: 4px; display: inline-block;">
                     Track Shipment
                   </a>

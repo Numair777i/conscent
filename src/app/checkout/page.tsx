@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Check, Plus, MapPin, Loader2, ShieldCheck } from "lucide-react";
 import { formatINR } from "@/lib/utils";
+import { calculateShipping } from "@/lib/shipping";
 import { cartSubtotal, useCart } from "@/lib/store/cart";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { detectUserAddress } from "@/lib/location";
@@ -128,9 +129,7 @@ export default function CheckoutPage() {
   const [deliveryEstimate, setDeliveryEstimate] = useState<string | null>(null);
 
   const subtotal = cartSubtotal(items);
-  // Aligned with unified store rule: Free shipping on ₹999+
-  // const shipping = subtotal === 0 || subtotal >= 999 ? 0 : 99;
-  const shipping = 0; // Temporarily 0 for testing
+  const shipping = calculateShipping(subtotal);
   const total = subtotal + shipping;
 
   const [formData, setFormData] = useState({

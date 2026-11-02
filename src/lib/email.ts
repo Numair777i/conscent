@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { escapeHtml } from "@/lib/utils";
 import { makeUnsubscribeUrl } from "@/lib/unsubscribe";
 
 const resend = process.env.RESEND_API_KEY
@@ -30,7 +31,7 @@ export async function sendOrderPlacedEmail(order: {
       (it) => `
       <tr style="border-bottom: 1px solid #222;">
         <td style="padding: 12px 0; color: #fff; font-weight: 600;">
-          ${it.name} <span style="color: #888; font-weight: 400;">(${it.size})</span>
+          ${escapeHtml(it.name)} <span style="color: #888; font-weight: 400;">(${escapeHtml(it.size)})</span>
         </td>
         <td style="padding: 12px 0; color: #aaa; text-align: center;">× ${it.qty}</td>
         <td style="padding: 12px 0; color: #fff; text-align: right; font-family: monospace;">
@@ -54,7 +55,7 @@ export async function sendOrderPlacedEmail(order: {
             <p style="letter-spacing: 0.3em; text-transform: uppercase; font-size: 11px; color: #888; margin: 0 0 16px;">CONSCENT EXTRAITS DE PARFUM</p>
             <h1 style="color: #fff; font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 0 0 12px;">Order Placed Successfully</h1>
             <p style="color: #a3a3a3; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
-              Dear ${order.customer.fullName}, thank you for acquiring your fragrance from CONSCENT. Your batch formulation has entered the dispatch queue.
+              Dear ${escapeHtml(order.customer.fullName)}, thank you for acquiring your fragrance from CONSCENT. Your batch formulation has entered the dispatch queue.
             </p>
 
             <div style="background: #1c1c1c; border-left: 3px solid #d4af37; padding: 14px 18px; margin-bottom: 28px;">
@@ -162,7 +163,7 @@ export async function sendTrackingUpdatedEmail(order: {
             <p style="letter-spacing: 0.3em; text-transform: uppercase; font-size: 11px; color: #888; margin: 0 0 16px;">CONSCENT DISPATCH</p>
             <h1 style="color: #fff; font-size: 24px; font-weight: 700; margin: 0 0 12px;">${current.headline}</h1>
             <p style="color: #a3a3a3; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
-              Dear ${order.customer.fullName}, your order <strong>${order.orderId}</strong> status has been updated:
+              Dear ${escapeHtml(order.customer.fullName)}, your order <strong>${order.orderId}</strong> status has been updated:
             </p>
 
             <div style="background: #1c1c1c; border-left: 3px solid #d4af37; padding: 16px 20px; margin-bottom: 24px;">

@@ -1,14 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { escapeHtml } from "@/lib/utils";
 import clientPromise from "@/lib/mongodb";
 import { resend } from "@/lib/resend";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
+    const limited = rateLimit(`forgot:${getClientIp(req)}`, 5, 60 * 60 * 1000);
+    if (!limited.ok) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(limited.retryAfterSec) },
+        },
+      );
+    }
+
     const body = await req.json();
     const email = body?.email;
 
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+\$/.test(email)) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json(
         { error: "Please provide a valid email address." },
         { status: 400 },
@@ -24,7 +37,7 @@ export async function POST(req: NextRequest) {
       .collection("users")
       .findOne({ email: normalizedEmail });
 
-    // 2. Check if account belongs to Google (query without \$or literal)
+    // 2. Check if account belongs to Google
     const googleAccountByEmail = await db.collection("accounts").findOne({
       provider: "google",
       providerAccountId: normalizedEmail,
@@ -63,7 +76,7 @@ export async function POST(req: NextRequest) {
                 
                 <h2 style="font-size: 18px; margin: 0 0 12px 0;">Google Sign-In Account</h2>
                 <p style="color: #cccccc; font-size: 14px; line-height: 1.6; margin: 0 0 24px 0;">
-                  We received a request to reset the password for <strong>${normalizedEmail}</strong>. 
+                  We received a request to reset the password for <strong>${escapeHtml(normalizedEmail)}</strong>. 
                   Your account is registered using <strong>Google Sign-In</strong>, which means you do not have a separate password.
                 </p>
 
@@ -103,17 +116,15 @@ export async function POST(req: NextRequest) {
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 Hour
 
-    // Dynamic key avoids literal \$set escaping issues
-    const updatePayload: Record<string, unknown> = {};
-    const setKey = String.fromCharCode(36) + "set"; // Evaluates cleanly to "\$set"
-    updatePayload[setKey] = {
-      resetPasswordToken: resetToken,
-      resetPasswordExpires: resetExpires,
-    };
-
-    await db
-      .collection("users")
-      .updateOne({ email: normalizedEmail }, updatePayload);
+    await db.collection("users").updateOne(
+      { email: normalizedEmail },
+      {
+        $set: {
+          resetPasswordToken: resetToken,
+          resetPasswordExpires: resetExpires,
+        },
+      },
+    );
 
     const resetLink = `${appUrl}/account/reset-password?token=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`;
 
