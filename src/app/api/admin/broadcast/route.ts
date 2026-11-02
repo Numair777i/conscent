@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { auth } from "@/app/api/auth/[...nextauth]/route";
 import clientPromise from "@/lib/mongodb";
+import { makeUnsubscribeUrl } from "@/lib/unsubscribe";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -70,7 +71,11 @@ export async function POST(req: Request) {
 
     // 1. Test Mode (sends directly to test address)
     if (testEmailOnly) {
-      const unsubUrl = `${baseUrl}/api/newsletter/unsubscribe?token=test`;
+      // Signed link for the test address, so you can test the real unsubscribe flow
+      const testAddress = Array.isArray(testEmailOnly)
+        ? testEmailOnly[0]
+        : testEmailOnly;
+      const unsubUrl = makeUnsubscribeUrl(String(testAddress), baseUrl);
       const { data, error } = await resend.emails.send({
         from: "CONSCENT Atelier <dispatch@news.conscentfragrances.com>",
         replyTo: "support@conscentfragrances.com",
@@ -102,8 +107,7 @@ export async function POST(req: Request) {
     }
 
     const emails = subscribers.map((sub) => {
-      const token = sub.unsubscribeToken || "direct";
-      const unsubUrl = `${baseUrl}/api/newsletter/unsubscribe?token=${token}&email=${encodeURIComponent(sub.email)}`;
+      const unsubUrl = makeUnsubscribeUrl(sub.email, baseUrl); // signed per subscriber
       return {
         from: "CONSCENT Atelier <dispatch@news.conscentfragrances.com>",
         replyTo: "support@conscentfragrances.com",

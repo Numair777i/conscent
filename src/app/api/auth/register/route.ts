@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import clientPromise from "@/lib/mongodb";
+import { isAdminEmail } from "@/lib/admin";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,6 +25,15 @@ export async function POST(req: NextRequest) {
     if (!email || !EMAIL_REGEX.test(email)) {
       return NextResponse.json(
         { success: false, error: "Please enter a valid email address." },
+        { status: 400 },
+      );
+    }
+
+    // Admin access is matched by email, and sign-up does not verify email ownership.
+    // So nobody may register the admin email (the admin signs in with Google instead).
+    if (isAdminEmail(email)) {
+      return NextResponse.json(
+        { success: false, error: "This email cannot be used to register." },
         { status: 400 },
       );
     }

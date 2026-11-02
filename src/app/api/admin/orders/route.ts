@@ -3,44 +3,27 @@ import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
 import { Order } from "@/models/Order";
 import { Resend } from "resend";
+import { isAdminEmail } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
-const AUTHORIZED_ADMIN_EMAIL = "conscent7@gmail.com";
 const resend = new Resend(process.env.RESEND_API_KEY || "");
 
-// Helper to verify if caller is admin either via NextAuth session or secret
-async function isAuthorizedAdmin(req: NextRequest) {
+// Only the logged-in admin (matched by session email) may use this API.
+// The old shared-secret fallback was removed: it let anyone in with a guessable URL.
+async function isAuthorizedAdmin(): Promise<boolean> {
   try {
     const session = await auth();
-    if (session?.user?.email?.toLowerCase().trim() === AUTHORIZED_ADMIN_EMAIL) {
-      return true;
-    }
+    return isAdminEmail(session?.user?.email);
   } catch (err) {
     console.error("Session check error in admin orders:", err);
+    return false;
   }
-
-  const { searchParams } = new URL(req.url);
-  const querySecret = searchParams.get("secret");
-  const authHeader = req.headers.get("authorization");
-  const customHeader = req.headers.get("x-admin-secret");
-
-  const expectedSecret = process.env.ADMIN_SECRET || "admin12345";
-
-  if (
-    querySecret === expectedSecret ||
-    customHeader === expectedSecret ||
-    authHeader === `Bearer ${expectedSecret}`
-  ) {
-    return true;
-  }
-
-  return false;
 }
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const isAuthed = await isAuthorizedAdmin(req);
+    const isAuthed = await isAuthorizedAdmin();
     if (!isAuthed) {
       console.warn("Unauthorized access attempt to /api/admin/orders");
       return NextResponse.json(
@@ -64,7 +47,7 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const isAuthed = await isAuthorizedAdmin(req);
+    const isAuthed = await isAuthorizedAdmin();
     if (!isAuthed) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -83,8 +66,14 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    if (shippingStatus) order.shippingStatus = shippingStatus;
-    if (trackingNumber) order.trackingNumber = trackingNumber;
+    if (shippingStatus) {
+      order.shippingStatus = shippingStatus;
+    }
+
+    // Only update trackingNumber if an actual non-empty string is provided
+    if (typeof trackingNumber === "string" && trackingNumber.trim() !== "") {
+      order.trackingNumber = trackingNumber.trim();
+    }
 
     const updatedOrder = await order.save();
 
@@ -106,12 +95,15 @@ export async function PATCH(req: NextRequest) {
         : "") ||
       "Fragrance Patron";
 
-    const activeTrackingNo =
+    const rawTracking =
       updatedOrder.trackingNumber ||
       (typeof plainOrder.trackingNumber === "string"
         ? plainOrder.trackingNumber
-        : "") ||
-      "Will be updated shortly via SMS";
+        : "");
+
+    const activeTrackingNo = rawTracking
+      ? rawTracking
+      : "Generated upon dispatch (Will update via SMS/Email)";
 
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL || "https://www.conscentfragrances.com";
@@ -145,7 +137,7 @@ export async function PATCH(req: NextRequest) {
             "CONSCENT <orders@conscentfragrances.com>",
           to: [recipientEmail],
           bcc: ["conscent7@gmail.com"],
-          subject: `${statusTitle} - ${updatedOrder.orderId} | CONSCENT Fragrances`,
+          subject: `${statusTitle} — #${updatedOrder.orderId} | CONSCENT Fragrances`,
           html: `
             <div style="background-color: #000000; color: #ffffff; padding: 40px 20px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
               <div style="max-width: 560px; margin: 0 auto; background-color: #0a0a0a; border: 1px solid #222222; padding: 32px; border-radius: 8px;">
@@ -161,7 +153,7 @@ export async function PATCH(req: NextRequest) {
 
                 <div style="background-color: #141414; border: 1px solid #262626; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
                   <p style="margin: 0; font-size: 14px; color: #ddd;"><strong>Order ID:</strong> ${updatedOrder.orderId}</p>
-                  <p style="margin: 6px 0 0; font-size: 14px; color: #ddd;"><strong>Tracking Number (AWB):</strong> <span style="color: #e11d48; font-family: monospace; font-size: 15px; font-weight: bold;">${activeTrackingNo}</span></p>
+                  <p style="margin: 6px 0 0; font-size: 14px; color: #ddd;"><strong>Tracking Number (AWB):</strong> <span style="color: #e11d48; font-family: monospace; font-size: 14px; font-weight: bold;">${activeTrackingNo}</span></p>
                   <p style="margin: 6px 0 0; font-size: 14px; color: #aaa;"><strong>Current Status:</strong> <span style="color: #22c55e; font-weight: bold;">${shippingStatus}</span></p>
                 </div>
 

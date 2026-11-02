@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { makeUnsubscribeUrl } from "@/lib/unsubscribe";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -211,7 +212,7 @@ export async function sendNewsletterVerificationEmail(
   if (!resend || !email) return;
 
   const verificationUrl = `${APP_URL}/api/newsletter/verify?token=${encodeURIComponent(token)}`;
-  const unsubUrl = `${APP_URL}/api/newsletter/unsubscribe?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+  const unsubUrl = makeUnsubscribeUrl(email, APP_URL); // signed, works only for this email
 
   try {
     await resend.emails.send({
@@ -265,7 +266,7 @@ export async function sendBroadcastEmail(
 ) {
   if (!resend) return;
 
-  const unsubscribeUrl = `${APP_URL}/api/newsletter/unsubscribe?email=${encodeURIComponent(to)}`;
+  const unsubscribeUrl = makeUnsubscribeUrl(to, APP_URL); // signed, works only for this email
 
   try {
     await resend.emails.send({

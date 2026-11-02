@@ -8,6 +8,7 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import { Providers } from "@/components/Providers";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { auth } from "@/auth";
 
 const bebasNeue = Bebas_Neue({
   weight: "400",
@@ -83,11 +84,14 @@ export const viewport: Viewport = {
   viewportFit: "cover", // Tells Safari to use the full hardware display
 };
 
-export default function RootLayout({
+// async so we can read the session on the server
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+
   return (
     <html
       lang="en"
@@ -98,7 +102,7 @@ export default function RootLayout({
         {process.env.NEXT_PUBLIC_GA_ID && (
           <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
         )}
-        <Providers>
+        <Providers session={session}>
           <Navbar />
           <main className="min-h-[60vh] flex-1">{children}</main>
           <Footer />

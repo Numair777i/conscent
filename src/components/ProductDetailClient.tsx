@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { StaticImageData } from "next/image";
+import { AnimatedPrice } from "@/components/ui/AnimatedPrice";
 import {
   Minus,
   Plus,
@@ -200,9 +201,10 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-6">
             <div>
               <div className="flex items-baseline gap-3">
-                <span className="font-heading text-4xl sm:text-5xl font-black">
-                  {formatINR(selectedVariant.price * quantity)}
-                </span>
+                <AnimatedPrice
+                  value={selectedVariant.price * quantity}
+                  className="font-heading text-4xl sm:text-5xl font-black"
+                />
                 {selectedVariant.compareAt && (
                   <span className="text-base text-muted-foreground line-through">
                     {formatINR(selectedVariant.compareAt * quantity)}

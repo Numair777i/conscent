@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { formatINR } from "@/lib/utils";
 import { useCart } from "@/lib/store/cart";
 import type { Product } from "@/types";
+import { AnimatedPrice } from "@/components/ui/AnimatedPrice";
 
 interface ProductCardProps {
   product: Product;
@@ -71,14 +72,14 @@ export function ProductCard({ product }: ProductCardProps) {
                 ? `From ${entryVariant.size}`
                 : entryVariant.size}
             </p>
-            <p className="text-base sm:text-lg font-bold">
-              {formatINR(entryVariant.price)}
+            <div className="text-base sm:text-lg font-bold flex items-baseline">
+              <AnimatedPrice value={entryVariant.price} />
               {entryVariant.compareAt && (
                 <span className="text-muted-foreground ml-2 text-xs font-normal line-through">
                   {formatINR(entryVariant.compareAt)}
                 </span>
               )}
-            </p>
+            </div>
           </div>
 
           <button

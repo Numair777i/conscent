@@ -21,7 +21,14 @@ export async function POST(req: NextRequest) {
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = body;
     const targetOrderId = body.dbOrderId || body.orderId;
 
-    if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+    if (
+      typeof razorpayOrderId !== "string" ||
+      typeof razorpayPaymentId !== "string" ||
+      typeof razorpaySignature !== "string" ||
+      !razorpayOrderId ||
+      !razorpayPaymentId ||
+      !razorpaySignature
+    ) {
       return NextResponse.json(
         {
           success: false,
@@ -66,17 +73,28 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
 
-    // 2. Fetch current order defensively by orderId or razorpayOrderId
-    const query = targetOrderId
-      ? { $or: [{ orderId: targetOrderId }, { razorpayOrderId }] }
-      : { razorpayOrderId };
-
-    const existingOrder = await Order.findOne(query);
+    // 2. Find the order using ONLY the signature-verified razorpayOrderId.
+    // Never trust a client-supplied order id for the lookup: it could point at a
+    // different, unpaid order and mark it as paid with someone else's payment.
+    const existingOrder = await Order.findOne({ razorpayOrderId });
 
     if (!existingOrder) {
       return NextResponse.json(
         { success: false, error: "Order record not found" },
         { status: 404 },
+      );
+    }
+
+    // If the client also sent our own order id, it must match the order we found
+    if (targetOrderId && existingOrder.orderId !== targetOrderId) {
+      console.warn("Order id mismatch rejected:", {
+        targetOrderId,
+        found: existingOrder.orderId,
+        razorpayOrderId,
+      });
+      return NextResponse.json(
+        { success: false, error: "Order mismatch" },
+        { status: 400 },
       );
     }
 
