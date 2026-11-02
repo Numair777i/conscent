@@ -203,6 +203,11 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
               <div className="flex items-baseline gap-3">
                 <AnimatedPrice
                   value={selectedVariant.price * quantity}
+                  fromValue={
+                    selectedVariant.compareAt
+                      ? selectedVariant.compareAt * quantity
+                      : undefined
+                  }
                   className="font-heading text-4xl sm:text-5xl font-black"
                 />
                 {selectedVariant.compareAt && (

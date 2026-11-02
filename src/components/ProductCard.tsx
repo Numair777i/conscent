@@ -73,7 +73,10 @@ export function ProductCard({ product }: ProductCardProps) {
                 : entryVariant.size}
             </p>
             <div className="text-base sm:text-lg font-bold flex items-baseline">
-              <AnimatedPrice value={entryVariant.price} />
+              <AnimatedPrice
+                value={entryVariant.price}
+                fromValue={entryVariant.compareAt}
+              />
               {entryVariant.compareAt && (
                 <span className="text-muted-foreground ml-2 text-xs font-normal line-through">
                   {formatINR(entryVariant.compareAt)}
