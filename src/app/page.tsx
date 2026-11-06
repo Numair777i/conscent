@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import type { Metadata } from "next";
 import {
   Accordion,
   AccordionContent,
@@ -13,14 +14,45 @@ import { products } from "@/data/products";
 import { formatINR } from "@/lib/utils";
 import tester1 from "@/assets/Pack-of-3.webp";
 
+export const metadata: Metadata = {
+  title: { absolute: "CONSCENT | Discover Indie Luxury Fragrances" },
+  description:
+    "Discover indie luxury fragrances in concentrated extrait de parfum. 25–30% oil, striking projection and 10–12+ hour longevity, handcrafted in India.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    locale: "en_IN",
+    siteName: "CONSCENT",
+    url: "/",
+    title: "CONSCENT | Discover Indie Luxury Fragrances",
+    description:
+      "Discover indie luxury fragrances in concentrated extrait de parfum. 25–30% oil, striking projection and 8–10+ hour longevity, handcrafted in India.",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "CONSCENT — indie luxury extrait de parfum",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CONSCENT | Discover Indie Luxury Fragrances",
+    description:
+      "Discover indie luxury fragrances in concentrated extrait de parfum. 25–30% oil, striking projection and 10–12+ hour longevity, handcrafted in India.",
+    images: ["/og-image.jpg"],
+  },
+};
+
 const faqs = [
   {
     q: "How long does a CONSCENT scent last?",
-    a: "Our extraits run 20–30% concentration and typically last 8–12 hours on skin, longer on fabric.",
+    a: "Our extraits run 20–30% concentration and typically last 8–10 hours on skin, longer on fabric.",
   },
   {
     q: "Can I try before buying a full bottle?",
-    a: "Yes. The Trial Set gives you all six house scents in 2ML vials, and the full ₹999 is credited against your first full-size purchase.",
+    a: "Yes. The Trial Set gives you all three house scents in 8ML vials, and the full ₹999 is credited against your first full-size purchase.",
   },
   {
     q: "What are the shipping timelines?",
@@ -52,7 +84,7 @@ export default function Home() {
         <div className="mx-auto grid w-full max-w-[1400px] grid-cols-2 gap-4 px-4 text-center text-[10px] font-semibold tracking-[0.2em] uppercase sm:px-6 md:grid-cols-4 select-none">
           <span>Free express shipping over ₹999</span>
           <span>Cash on delivery available</span>
-          <span>8–12 hr extrait projection</span>
+          <span>8–10 hr extrait projection</span>
           <span>Cruelty-free &amp; handcrafted</span>
         </div>
       </section>
@@ -68,7 +100,7 @@ export default function Home() {
           >
             <Image
               src={tester1}
-              alt="CONSCENT Trial Set of six vials"
+              alt="CONSCENT Trial Set of three vials"
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
               className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -94,9 +126,9 @@ export default function Home() {
               href={trialUrl}
               className="text-muted-foreground hover:text-foreground mt-4 max-w-md text-sm leading-relaxed sm:text-base block transition-colors"
             >
-              Three 8ML extrait vials. Live with each profile on skin for a week,
-              then put the full ₹999 purchase price towards the 50ML or 100ML
-              bottle you love. Zero blind-buy regret.
+              Three 8ML extrait vials. Live with each profile on skin for a
+              week, then put the full ₹999 purchase price towards the 50ML or
+              100ML bottle you love. Zero blind-buy regret.
             </Link>
 
             {/* Pricing Summary */}

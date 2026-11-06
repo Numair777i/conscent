@@ -125,21 +125,21 @@ export function DeleteAccountDialog({ hasPassword }: DeleteAccountDialogProps) {
   };
 
   const inputClass =
-    "w-full border bg-background px-3.5 py-2.5 text-sm outline-none font-mono focus:border-destructive disabled:opacity-60";
+    "w-full border bg-background px-3.5 py-2.5 text-sm outline-none font-mono focus:border-destructive disabled:opacity-60 rounded-[14px] [corner-shape:squircle]";
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center justify-center gap-2 border border-destructive px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-destructive transition hover:bg-destructive hover:text-white cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+          className="inline-flex items-center justify-center gap-2 rounded-[16px] [corner-shape:squircle] border border-destructive px-5 py-3 text-xs font-bold uppercase tracking-[0.2em] text-destructive transition hover:bg-destructive hover:text-white cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-destructive"
         >
           <Trash2 className="size-3.5" aria-hidden="true" />
           Delete Account
         </button>
       </AlertDialogTrigger>
 
-      <AlertDialogContent className="max-h-[92vh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-none p-6 sm:rounded-none sm:p-8">
+      <AlertDialogContent className="max-h-[92vh] w-[calc(100%-2rem)] max-w-md overflow-y-auto p-6 sm:p-8 rounded-[22px] sm:rounded-[22px] [corner-shape:squircle]">
         <form onSubmit={handleDelete} noValidate className="space-y-6">
           <AlertDialogHeader className="space-y-3 text-left">
             <AlertDialogTitle className="font-heading text-2xl uppercase tracking-tight text-destructive">
@@ -158,7 +158,7 @@ export function DeleteAccountDialog({ hasPassword }: DeleteAccountDialogProps) {
           {formError && (
             <div
               role="alert"
-              className="border border-destructive/40 bg-destructive/5 px-3.5 py-2.5 text-xs text-destructive"
+              className="border border-destructive/40 bg-destructive/5 px-3.5 py-2.5 text-xs text-destructive rounded-[14px] [corner-shape:squircle]"
             >
               {formError}
             </div>
@@ -260,7 +260,7 @@ export function DeleteAccountDialog({ hasPassword }: DeleteAccountDialogProps) {
           <AlertDialogFooter className="gap-3 sm:gap-3 sm:space-x-0">
             <AlertDialogCancel
               disabled={loading}
-              className="mt-0 rounded-none text-xs font-bold uppercase tracking-[0.2em]"
+              className="mt-0 rounded-[14px] [corner-shape:squircle] text-xs font-bold uppercase tracking-[0.2em]"
             >
               Cancel
             </AlertDialogCancel>
@@ -268,7 +268,7 @@ export function DeleteAccountDialog({ hasPassword }: DeleteAccountDialogProps) {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="inline-flex items-center justify-center gap-2 bg-destructive px-5 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-white transition hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 rounded-[14px] [corner-shape:squircle] bg-destructive px-5 py-2.5 text-xs font-bold uppercase tracking-[0.2em] text-white transition hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
             >
               {loading && (
                 <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />

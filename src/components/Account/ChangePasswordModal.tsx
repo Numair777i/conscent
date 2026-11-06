@@ -21,7 +21,7 @@ export function ChangePasswordModal() {
       <DialogTrigger asChild>
         <button
           type="button"
-          className="group cursor-pointer p-6 border border-border bg-card hover:border-foreground/60 transition-all flex flex-col justify-between text-left w-full h-full outline-none focus-visible:border-foreground"
+          className="group cursor-pointer p-6 border border-border bg-card hover:border-foreground/60 transition-all flex flex-col justify-between text-left w-full h-full outline-none focus-visible:border-foreground rounded-[22px] [corner-shape:squircle]"
         >
           <div>
             <KeyRound className="size-6 mb-4 text-muted-foreground group-hover:text-brand transition-colors" />
@@ -39,7 +39,7 @@ export function ChangePasswordModal() {
         </button>
       </DialogTrigger>
 
-      <DialogContent className="max-h-[92vh] w-[calc(100%-2rem)] max-w-md gap-6 overflow-y-auto rounded-none border-border p-6 sm:rounded-none sm:p-8">
+      <DialogContent className="max-h-[92vh] w-[calc(100%-2rem)] max-w-md gap-6 overflow-y-auto border-border p-6 sm:p-8 rounded-[22px] sm:rounded-[22px] [corner-shape:squircle]">
         <DialogHeader className="space-y-2 text-left">
           <DialogTitle className="font-heading text-2xl uppercase tracking-tight">
             Change Password

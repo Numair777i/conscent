@@ -24,48 +24,47 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://www.conscentfragrances.com",
-  ),
+  metadataBase: new URL("https://conscentfragrances.com"),
   title: {
-    default: "CONSCENT Fragrances",
+    default: "CONSCENT | Indie Extrait de Parfum",
     template: "%s | CONSCENT",
   },
   description:
-    "Bold artisan extrait de parfum and high-concentration fragrances crafted in small batches in India. Long-lasting, high-projection perfumery.",
-  keywords: [
-    "CONSCENT",
-    "CONSCENT Fragrances",
-    "extrait de parfum India",
-    "artisan perfume",
-    "long lasting perfume",
-    "discovery set perfume",
-  ],
-  alternates: {
-    canonical: "https://www.conscentfragrances.com",
+    "Indie luxury extrait de parfum at 25–30% concentration. Handcrafted in small batches in India for bold projection and 10–12+ hour longevity.",
+  applicationName: "CONSCENT",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
   },
   openGraph: {
-    title: "CONSCENT — Loud Fragrance",
-    description:
-      "Extrait de parfum engineered for projection. Handcrafted in India.",
-    url: "https://www.conscentfragrances.com",
-    siteName: "CONSCENT Fragrances",
-    locale: "en_IN",
     type: "website",
+    locale: "en_IN",
+    siteName: "CONSCENT",
+    title: "CONSCENT | Indie Extrait de Parfum",
+    description:
+      "Indie luxury extrait de parfum at 25–30% concentration. Handcrafted in small batches in India for bold projection and 10–12+ hour longevity.",
     images: [
       {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "CONSCENT Perfumes",
+        alt: "CONSCENT — indie luxury extrait de parfum",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "CONSCENT — Loud Fragrance",
+    title: "CONSCENT | Indie Extrait de Parfum",
     description:
-      "Extrait de parfum engineered for projection. Handcrafted in India.",
+      "Indie luxury extrait de parfum at 25–30% concentration. Handcrafted in small batches in India for bold projection and 10–12+ hour longevity.",
+    images: ["/og-image.jpg"],
   },
   icons: {
     icon: [

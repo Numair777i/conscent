@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import type { Metadata } from "next";
 import {
   Package,
   MapPin,
@@ -14,6 +15,13 @@ import { ChangePasswordModal } from "@/components/Account/ChangePasswordModal";
 import { DeleteAccountDialog } from "@/components/Account/DeleteAccountDialog";
 import { isAdminEmail } from "@/lib/admin";
 import clientPromise from "@/lib/mongodb";
+
+export const metadata: Metadata = {
+  title: "My Account",
+  description:
+    "Manage your CONSCENT orders, saved addresses and account security.",
+  robots: { index: false, follow: false },
+};
 
 export default async function AccountPage() {
   const session = await auth();
@@ -60,7 +68,7 @@ export default async function AccountPage() {
       >
         <Link
           href="/account/orders"
-          className="group cursor-pointer p-6 border border-border bg-card hover:border-foreground/60 transition-all flex flex-col justify-between"
+          className="group cursor-pointer p-6 border border-border bg-card hover:border-foreground/60 transition-all flex flex-col justify-between rounded-[22px] [corner-shape:squircle]"
         >
           <div>
             <Package className="size-6 mb-4 text-muted-foreground group-hover:text-brand transition-colors" />
@@ -80,7 +88,7 @@ export default async function AccountPage() {
 
         <Link
           href="/account/addresses"
-          className="group cursor-pointer p-6 border border-border bg-card hover:border-foreground/60 transition-all flex flex-col justify-between"
+          className="group cursor-pointer p-6 border border-border bg-card hover:border-foreground/60 transition-all flex flex-col justify-between rounded-[22px] [corner-shape:squircle]"
         >
           <div>
             <MapPin className="size-6 mb-4 text-muted-foreground group-hover:text-brand transition-colors" />
@@ -104,7 +112,7 @@ export default async function AccountPage() {
         {isAdmin ? (
           <Link
             href="/admin"
-            className="group cursor-pointer p-6 border border-brand/50 bg-brand/5 hover:border-brand transition-all flex flex-col justify-between"
+            className="group cursor-pointer p-6 border border-brand/50 bg-brand/5 hover:border-brand transition-all flex flex-col justify-between rounded-[22px] [corner-shape:squircle]"
           >
             <div>
               <LayoutDashboard className="size-6 mb-4 text-brand" />
@@ -122,7 +130,7 @@ export default async function AccountPage() {
             </div>
           </Link>
         ) : (
-          <div className="p-6 border border-border bg-card flex flex-col justify-between select-none">
+          <div className="p-6 border border-border bg-card flex flex-col justify-between select-none rounded-[22px] [corner-shape:squircle]">
             <div>
               <ShieldCheck className="size-6 mb-4 text-emerald-500" />
               <h2 className="font-heading text-lg uppercase tracking-wide mb-1">
@@ -144,7 +152,7 @@ export default async function AccountPage() {
       {!isAdmin && (
         <section
           aria-labelledby="danger-zone-heading"
-          className="flex flex-col gap-5 border border-destructive/40 bg-destructive/5 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8"
+          className="flex flex-col gap-5 border border-destructive/40 bg-destructive/5 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8 rounded-[22px] [corner-shape:squircle]"
         >
           <div>
             <h2

@@ -1,10 +1,10 @@
-import { MetadataRoute } from "next";
+import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
   const rawBaseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://www.conscentfragrances.com";
+    process.env.NEXT_PUBLIC_APP_URL || "https://conscentfragrances.com";
 
-  // Strips one or more trailing slashes at the end of the string
+  // Remove any trailing slashes
   const baseUrl = rawBaseUrl.replace(/\/+$/, "");
 
   return {
@@ -12,14 +12,10 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: [
-          "/api/",
-          "/admin/",
-          "/account/",
-          "/checkout",
-          "/thank-you",
-          "/track",
-        ],
+        // Only block what must never be crawled. Pages that use "noindex"
+        // (account, checkout, thank-you) must stay crawlable, otherwise
+        // Google can never see the noindex tag.
+        disallow: ["/api/", "/admin/"],
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,

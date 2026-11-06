@@ -1,9 +1,35 @@
 import React from "react";
+import type { Metadata } from "next";
 
-export const metadata = {
-  title: "Contact Us | CONSCENT Fragrances",
+export const metadata: Metadata = {
+  title: "Contact & Concierge",
   description:
-    "Customer care, operational address, and support inquiries for CONSCENT Fragrances.",
+    "Speak with the CONSCENT concierge for fragrance consultations, order queries and support. Email support@conscentfragrances.com, Monday to Saturday.",
+  alternates: { canonical: "/contact" },
+  openGraph: {
+    type: "website",
+    locale: "en_IN",
+    siteName: "CONSCENT",
+    url: "/contact",
+    title: "Contact & Concierge | CONSCENT",
+    description:
+      "Speak with the CONSCENT concierge for fragrance consultations, order queries and support. Email support@conscentfragrances.com, Monday to Saturday.",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "CONSCENT — indie luxury extrait de parfum",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Contact & Concierge | CONSCENT",
+    description:
+      "Speak with the CONSCENT concierge for fragrance consultations, order queries and support. Email support@conscentfragrances.com, Monday to Saturday.",
+    images: ["/og-image.jpg"],
+  },
 };
 
 export default function ContactUs() {

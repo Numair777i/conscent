@@ -1,14 +1,15 @@
-import { MetadataRoute } from "next";
+import type { MetadataRoute } from "next";
 import { products } from "@/data/products";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://www.conscentfragrances.com";
+  const baseUrl = (
+    process.env.NEXT_PUBLIC_APP_URL || "https://conscentfragrances.com"
+  ).replace(/\/+$/, "");
 
-  // 1. Static Public Store Pages
+  // 1. Static public pages
   const staticRoutes: MetadataRoute.Sitemap = [
     {
-      url: `${baseUrl}`,
+      url: baseUrl,
       lastModified: new Date(),
       changeFrequency: "daily",
       priority: 1.0,
@@ -24,6 +25,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
+    },
+    {
+      url: `${baseUrl}/track`,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.4,
     },
     {
       url: `${baseUrl}/shipping`,
@@ -51,7 +58,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ];
 
-  // 2. Dynamic Product Pages from catalog (ensures no duplicates)
+  // 2. Product pages (includes /parfums/trial-set)
   const productRoutes: MetadataRoute.Sitemap = products.map((product) => ({
     url: `${baseUrl}/parfums/${product.slug}`,
     lastModified: new Date(),

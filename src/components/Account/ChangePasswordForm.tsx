@@ -54,7 +54,7 @@ function PasswordField({
           onChange={(e) => onChange(e.target.value)}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedIds || undefined}
-          className={`w-full border bg-background px-3.5 py-2.5 pr-11 text-sm outline-none font-mono focus:border-brand disabled:opacity-60 ${
+          className={`w-full border bg-background px-3.5 py-2.5 pr-11 text-sm outline-none font-mono focus:border-brand disabled:opacity-60 rounded-[14px] [corner-shape:squircle] ${
             error ? "border-destructive" : "border-border"
           }`}
           placeholder="••••••••"
@@ -211,7 +211,7 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
       {formError && (
         <div
           role="alert"
-          className="border border-destructive/40 bg-destructive/5 px-3.5 py-2.5 text-xs text-destructive"
+          className="border border-destructive/40 bg-destructive/5 px-3.5 py-2.5 text-xs text-destructive rounded-[14px] [corner-shape:squircle]"
         >
           {formError}
         </div>
@@ -219,7 +219,7 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
       {success && (
         <div
           role="status"
-          className="border border-emerald-500/40 bg-emerald-500/5 px-3.5 py-2.5 text-xs text-emerald-500"
+          className="border border-emerald-500/40 bg-emerald-500/5 px-3.5 py-2.5 text-xs text-emerald-500 rounded-[14px] [corner-shape:squircle]"
         >
           {success}
         </div>
@@ -310,7 +310,7 @@ export function ChangePasswordForm({ onSuccess }: ChangePasswordFormProps) {
       <button
         type="submit"
         disabled={!canSubmit}
-        className="w-full bg-brand text-brand-foreground py-3.5 text-xs font-bold tracking-[0.2em] uppercase hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center gap-2"
+        className="w-full rounded-[14px] [corner-shape:squircle] bg-brand text-brand-foreground py-3.5 text-xs font-bold tracking-[0.2em] uppercase hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center gap-2"
       >
         {loading && (
           <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
