@@ -30,6 +30,7 @@ export const products: Product[] = [
     gender: "MASC",
     image: SA,
     images: [SA, SAbox],
+    badge: "Best Selling",
     notes: [
       { layer: "top", name: "Sweet Plum" },
       { layer: "top", name: "Cardamom" },
