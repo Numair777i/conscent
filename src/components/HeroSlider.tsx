@@ -29,7 +29,7 @@ const slides = [
   {
     image: trialSet,
     eyebrow: "Starter Kit",
-    title: ["TRIAL", "SET 06"],
+    title: ["TRIAL", "SET"],
     copy: "Three 8ML vials at ₹399. Credited on your first full bottle.",
     cta: "Get the set",
     href: "/parfums/trial-set",
