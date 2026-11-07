@@ -4,13 +4,18 @@ import bottle1 from "@/assets/bottle-1.jpg";
 import bottle2 from "@/assets/bottle-2.jpg";
 import bottle3 from "@/assets/bottle-3.jpg";
 import bottle4 from "@/assets/bottle-4.jpg";
-import SA from "@/assets/secret-affair-single.webp";
+import SA from "@/assets/Secret-Affair-Green.jpg";
 import SAbox from "@/assets/secret-affair-box.webp";
 import liar from "@/assets/Liar.webp";
 import lumora from "@/assets/Lumora.webp";
 import satester from "@/assets/Secret-Affair.webp";
 import tester1 from "@/assets/Pack-of-3.webp";
 import tester2 from "@/assets/Pack-of-3-lying.webp";
+import lumora1 from "@/assets/lumora-right.jpg";
+import lumora2 from "@/assets/lumora-2.jpg";
+import lumora3 from "@/assets/lumora-3.jpg";
+import lumora4 from "@/assets/lumora-4.jpg";
+import lumora5 from "@/assets/lumora-5.jpg";
 
 export const products: Product[] = [
   {
@@ -36,9 +41,15 @@ export const products: Product[] = [
       { layer: "base", name: "Amber" },
     ],
     variants: [
-      { id: "sa-10", size: "8 ML", price: 199, inStock: true },
-      { id: "sa-50", size: "50 ML", price: 899, inStock: true },
-      { id: "sa-100", size: "100 ML", price: 1499, inStock: true },
+      { id: "sa-8", size: "8 ML", price: 199, inStock: true },
+      { id: "sa-50", size: "50 ML", price: 699, compareAt: 899, inStock: true },
+      {
+        id: "sa-100",
+        size: "100 ML",
+        price: 999,
+        compareAt: 1499,
+        inStock: true,
+      },
     ],
   },
   {
@@ -51,7 +62,8 @@ export const products: Product[] = [
     family: "AMBER / SPICY",
     intensity: "HEAVY",
     gender: "UNISEX",
-    image: lumora,
+    image: lumora1,
+    images: [lumora2, lumora3, lumora4, lumora5],
     badge: "NEW DROP",
     notes: [
       { layer: "top", name: "Raspberry" },
@@ -63,60 +75,66 @@ export const products: Product[] = [
     ],
     variants: [
       { id: "p2-10", size: "8 ML", price: 199, inStock: true },
-      { id: "p2-50", size: "50 ML", price: 899, inStock: true },
-      { id: "p2-100", size: "100 ML", price: 1499, inStock: true },
+      { id: "p2-50", size: "50 ML", price: 699, compareAt: 899, inStock: true },
+      {
+        id: "p2-100",
+        size: "100 ML",
+        price: 999,
+        compareAt: 1499,
+        inStock: true,
+      },
     ],
   },
-  {
-    id: "p3",
-    slug: "amber-riot",
-    name: "AMBER RIOT",
-    tagline: "Golden, warm, impossible to ignore.",
-    description:
-      "Liquid amber poured over tonka and dry woods. A cold-weather signature that reads expensive without trying.",
-    family: "AMBER / WOODY",
-    intensity: "MEDIUM",
-    gender: "MASC",
-    image: bottle3,
-    notes: [
-      { layer: "top", name: "Mandarin" },
-      { layer: "top", name: "Cardamom" },
-      { layer: "heart", name: "Labdanum" },
-      { layer: "heart", name: "Cedar" },
-      { layer: "base", name: "Tonka Bean" },
-      { layer: "base", name: "Benzoin" },
-    ],
-    variants: [
-      { id: "p3-10", size: "10 ML", price: 649, inStock: true },
-      { id: "p3-50", size: "50 ML", price: 2299, inStock: true },
-      { id: "p3-100", size: "100 ML", price: 3699, inStock: true },
-    ],
-  },
-  {
-    id: "p4",
-    slug: "white-noise",
-    name: "WHITE NOISE",
-    tagline: "Clean skin, but louder.",
-    description:
-      "Musk, iris and cashmere wood. The everyday scent that makes people ask what you're wearing without knowing why.",
-    family: "MUSK / FLORAL",
-    intensity: "LIGHT",
-    gender: "FEM",
-    image: bottle4,
-    notes: [
-      { layer: "top", name: "Pear" },
-      { layer: "top", name: "Aldehydes" },
-      { layer: "heart", name: "Iris" },
-      { layer: "heart", name: "Jasmine" },
-      { layer: "base", name: "White Musk" },
-      { layer: "base", name: "Cashmere Wood" },
-    ],
-    variants: [
-      { id: "p4-10", size: "10 ML", price: 599, inStock: true },
-      { id: "p4-50", size: "50 ML", price: 2099, inStock: true },
-      { id: "p4-100", size: "100 ML", price: 3399, inStock: true },
-    ],
-  },
+  // {
+  //   id: "p3",
+  //   slug: "amber-riot",
+  //   name: "AMBER RIOT",
+  //   tagline: "Golden, warm, impossible to ignore.",
+  //   description:
+  //     "Liquid amber poured over tonka and dry woods. A cold-weather signature that reads expensive without trying.",
+  //   family: "AMBER / WOODY",
+  //   intensity: "MEDIUM",
+  //   gender: "MASC",
+  //   image: bottle3,
+  //   notes: [
+  //     { layer: "top", name: "Mandarin" },
+  //     { layer: "top", name: "Cardamom" },
+  //     { layer: "heart", name: "Labdanum" },
+  //     { layer: "heart", name: "Cedar" },
+  //     { layer: "base", name: "Tonka Bean" },
+  //     { layer: "base", name: "Benzoin" },
+  //   ],
+  //   variants: [
+  //     { id: "p3-10", size: "10 ML", price: 649, inStock: true },
+  //     { id: "p3-50", size: "50 ML", price: 2299, inStock: true },
+  //     { id: "p3-100", size: "100 ML", price: 3699, inStock: true },
+  //   ],
+  // },
+  // {
+  //   id: "p4",
+  //   slug: "white-noise",
+  //   name: "WHITE NOISE",
+  //   tagline: "Clean skin, but louder.",
+  //   description:
+  //     "Musk, iris and cashmere wood. The everyday scent that makes people ask what you're wearing without knowing why.",
+  //   family: "MUSK / FLORAL",
+  //   intensity: "LIGHT",
+  //   gender: "FEM",
+  //   image: bottle4,
+  //   notes: [
+  //     { layer: "top", name: "Pear" },
+  //     { layer: "top", name: "Aldehydes" },
+  //     { layer: "heart", name: "Iris" },
+  //     { layer: "heart", name: "Jasmine" },
+  //     { layer: "base", name: "White Musk" },
+  //     { layer: "base", name: "Cashmere Wood" },
+  //   ],
+  //   variants: [
+  //     { id: "p4-10", size: "10 ML", price: 599, inStock: true },
+  //     { id: "p4-50", size: "50 ML", price: 2099, inStock: true },
+  //     { id: "p4-100", size: "100 ML", price: 3399, inStock: true },
+  //   ],
+  // },
 
   {
     id: "p6",

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { StaticImageData } from "next/image";
-import { AnimatedPrice } from "@/components/ui/AnimatedPrice";
+import { PriceBlock } from "@/components/PriceBlock";
 import {
   Minus,
   Plus,
@@ -200,22 +200,15 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           {/* Price & Quantity Controls */}
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-6">
             <div>
-              <div className="flex items-baseline gap-3">
-                <AnimatedPrice
-                  value={selectedVariant.price * quantity}
-                  fromValue={
-                    selectedVariant.compareAt
-                      ? selectedVariant.compareAt * quantity
-                      : undefined
-                  }
-                  className="font-heading text-4xl sm:text-5xl font-black"
-                />
-                {selectedVariant.compareAt && (
-                  <span className="text-base text-muted-foreground line-through">
-                    {formatINR(selectedVariant.compareAt * quantity)}
-                  </span>
-                )}
-              </div>
+              <PriceBlock
+                price={selectedVariant.price * quantity}
+                compareAtPrice={
+                  selectedVariant.compareAt
+                    ? selectedVariant.compareAt * quantity
+                    : undefined
+                }
+                size="detail"
+              />
               <p className="text-muted-foreground mt-1 text-[11px] uppercase tracking-wider">
                 {selectedVariant.price >= 999
                   ? "✓ Free Express Shipping Qualified"

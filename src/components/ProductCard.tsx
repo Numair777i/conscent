@@ -4,10 +4,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import { formatINR } from "@/lib/utils";
 import { useCart } from "@/lib/store/cart";
 import type { Product } from "@/types";
-import { AnimatedPrice } from "@/components/ui/AnimatedPrice";
+import { PriceBlock } from "@/components/PriceBlock";
 
 interface ProductCardProps {
   product: Product;
@@ -66,23 +65,17 @@ export function ProductCard({ product }: ProductCardProps) {
 
         {/* Pricing & Quick Add */}
         <div className="mt-5 flex items-end justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.2em] uppercase">
               {product.variants.length > 1
                 ? `From ${entryVariant.size}`
                 : entryVariant.size}
             </p>
-            <div className="text-base sm:text-lg font-bold flex items-baseline">
-              <AnimatedPrice
-                value={entryVariant.price}
-                fromValue={entryVariant.compareAt}
-              />
-              {entryVariant.compareAt && (
-                <span className="text-muted-foreground ml-2 text-xs font-normal line-through">
-                  {formatINR(entryVariant.compareAt)}
-                </span>
-              )}
-            </div>
+            <PriceBlock
+              price={entryVariant.price}
+              compareAtPrice={entryVariant.compareAt}
+              size="card"
+            />
           </div>
 
           <button

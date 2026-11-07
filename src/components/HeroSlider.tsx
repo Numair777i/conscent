@@ -5,24 +5,26 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import hero1 from "@/assets/hero-1.jpg";
 import hero2 from "@/assets/hero-2.jpg";
-import trialSet from "@/assets/trial-set.jpg";
+import trialSet from "@/assets/Pack-of-3.webp";
+import lumora from "@/assets/lumora-4.jpg";
+import SA from "@/assets/secret-affair-box.jpg";
 
 const slides = [
   {
-    image: hero1,
+    image: SA,
     eyebrow: "New Extrait",
-    title: ["BLK", "OPIUM"],
-    copy: "Charred oud, black leather, 12+ hour projection.",
+    title: ["Secret", "Affair"],
+    copy: "Charred oud, black leather, 10+ hour projection.",
     cta: "Shop the drop",
     href: "/parfums/secret-affair",
   },
   {
-    image: hero2,
+    image: lumora,
     eyebrow: "House Collection",
     title: ["SMELL", "LOUD"],
     copy: "three signature scents. Zero quiet ones.",
     cta: "Browse parfums",
-    href: "/parfums",
+    href: "/parfums/lumora",
   },
   {
     image: trialSet,
