@@ -5,7 +5,7 @@ import bottle2 from "@/assets/bottle-2.jpg";
 import bottle3 from "@/assets/bottle-3.jpg";
 import bottle4 from "@/assets/bottle-4.jpg";
 import SA from "@/assets/Secret-Affair-Green.jpg";
-import SAbox from "@/assets/secret-affair-box.webp";
+import SAbox from "@/assets/secret-affair-box.jpg";
 import liar from "@/assets/Liar.webp";
 import lumora from "@/assets/Lumora.webp";
 import satester from "@/assets/Secret-Affair.webp";

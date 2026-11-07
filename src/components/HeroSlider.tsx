@@ -62,7 +62,7 @@ export function HeroSlider() {
   const slide = slides[index];
 
   return (
-    <section className="bg-ink relative h-[78vh] min-h-[520px] w-full overflow-hidden">
+    <section className="bg-ink relative h-[78vh] min-h-[520px] w-full overflow-hidden group">
       {/* Background Slides */}
       {slides.map((s, i) => (
         <div
@@ -86,8 +86,15 @@ export function HeroSlider() {
         </div>
       ))}
 
-      {/* Content Overlay */}
-      <div className="relative z-20 mx-auto flex h-full w-full max-w-[1400px] flex-col justify-end px-4 pb-16 sm:px-6 sm:pb-20">
+      {/* Invisible Clickable Overlay for the entire slide */}
+      <Link
+        href={slide.href}
+        className="absolute inset-0 z-[15] cursor-pointer"
+        aria-label={`Navigate to ${slide.title[0]} ${slide.title[1]}`}
+      />
+
+      {/* Content Overlay (pointer-events-none lets clicks pass through to the invisible link above) */}
+      <div className="relative z-20 mx-auto flex h-full w-full max-w-[1400px] flex-col justify-end px-4 pb-16 sm:px-6 sm:pb-20 pointer-events-none">
         <span className="bg-brand text-brand-foreground mb-4 w-fit px-3 py-1 text-[11px] font-bold tracking-[0.3em] uppercase">
           {slide.eyebrow}
         </span>
@@ -100,11 +107,11 @@ export function HeroSlider() {
           {slide.copy}
         </p>
 
-        {/* CTA & Interactive Slide Bars */}
-        <div className="mt-8 flex flex-wrap items-center gap-6">
+        {/* CTA & Interactive Slide Bars (pointer-events-auto restores clickability for specific buttons) */}
+        <div className="mt-8 flex flex-wrap items-center gap-6 pointer-events-auto">
           <Link
             href={slide.href}
-            className="bg-brand text-brand-foreground hover:bg-brand/90 px-8 py-4 text-xs font-bold tracking-[0.25em] uppercase transition-transform hover:-translate-y-0.5 shadow-md"
+            className="bg-brand text-brand-foreground hover:bg-brand/90 px-8 py-4 text-xs font-bold tracking-[0.25em] uppercase transition-all shadow-md group-hover:bg-brand/90 group-hover:-translate-y-0.5"
           >
             {slide.cta}
           </Link>
@@ -123,13 +130,13 @@ export function HeroSlider() {
                 aria-selected={i === index}
                 aria-label={`Go to slide ${i + 1}`}
                 onClick={() => goTo(i)}
-                className="group flex h-8 items-center px-1 cursor-pointer"
+                className="group/btn flex h-8 items-center px-1 cursor-pointer"
               >
                 <span
                   className={`h-[3px] rounded-full transition-all duration-300 ${
                     i === index
                       ? "bg-brand w-10"
-                      : "w-5 bg-white/40 group-hover:bg-white/70"
+                      : "w-5 bg-white/40 group-hover/btn:bg-white/70"
                   }`}
                 />
               </button>
