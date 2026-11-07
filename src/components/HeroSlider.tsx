@@ -14,13 +14,13 @@ const slides = [
     title: ["BLK", "OPIUM"],
     copy: "Charred oud, black leather, 12+ hour projection.",
     cta: "Shop the drop",
-    href: "/parfums/blk-opium",
+    href: "/parfums/secret-affair",
   },
   {
     image: hero2,
     eyebrow: "House Collection",
     title: ["SMELL", "LOUD"],
-    copy: "Six signature scents. Zero quiet ones.",
+    copy: "three signature scents. Zero quiet ones.",
     cta: "Browse parfums",
     href: "/parfums",
   },
@@ -28,9 +28,9 @@ const slides = [
     image: trialSet,
     eyebrow: "Starter Kit",
     title: ["TRIAL", "SET 06"],
-    copy: "Six 2ML vials at ₹999. Credited on your first full bottle.",
+    copy: "Three 8ML vials at ₹999. Credited on your first full bottle.",
     cta: "Get the set",
-    href: "/parfums/trial-set-06",
+    href: "/parfums/trial-set",
   },
 ] as const;
 
