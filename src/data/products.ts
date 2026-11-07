@@ -156,10 +156,10 @@ export const products: Product[] = [
     ],
     variants: [
       {
-        id: "p6-set",
-        size: "6 x 2 ML",
-        price: 999,
-        compareAt: 1499,
+        id: "p3-set",
+        size: "3 x 8 ML",
+        price: 399,
+        compareAt: 599,
         inStock: true,
       },
     ],

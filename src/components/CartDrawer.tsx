@@ -16,6 +16,11 @@ export function CartDrawer() {
   const subtotal = cartSubtotal(items);
   const remaining = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
 
+  // Dynamic Shipping Calculation
+  const SHIPPING_FEE = 99;
+  const shippingFee = remaining > 0 ? SHIPPING_FEE : 0;
+  const finalTotal = subtotal + shippingFee;
+
   // Prevent background scrolling when cart drawer is active
   useEffect(() => {
     if (isOpen) {
@@ -160,15 +165,44 @@ export function CartDrawer() {
         {/* Checkout Footer */}
         {items.length > 0 && (
           <div className="border-border border-t p-5 bg-background">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold tracking-[0.2em] uppercase text-muted-foreground">
-                Subtotal
-              </span>
-              <span className="text-xl font-bold">{formatINR(subtotal)}</span>
+            <div className="flex flex-col gap-3 mb-4">
+              {/* Subtotal Row */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold tracking-[0.2em] uppercase text-muted-foreground">
+                  Subtotal
+                </span>
+                <span className="text-base font-bold">
+                  {formatINR(subtotal)}
+                </span>
+              </div>
+
+              {/* Shipping Row */}
+              <div className="flex items-center justify-between pb-4 border-b border-border/60">
+                <span className="text-xs font-semibold tracking-[0.2em] uppercase text-muted-foreground">
+                  Shipping
+                </span>
+                <span
+                  className={`text-base font-bold ${shippingFee > 0 ? "text-brand" : "text-green-600"}`}
+                >
+                  {shippingFee > 0 ? formatINR(shippingFee) : "FREE"}
+                </span>
+              </div>
+
+              {/* Final Total Row */}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-sm font-bold tracking-[0.2em] uppercase text-ink">
+                  Total
+                </span>
+                <span className="text-2xl font-extrabold text-ink">
+                  {formatINR(finalTotal)}
+                </span>
+              </div>
             </div>
+
             <p className="text-muted-foreground mt-1 text-[11px] tracking-wide">
-              Taxes included. Express shipping calculated at checkout.
+              Taxes included.
             </p>
+
             <Link
               href="/checkout"
               onClick={close}

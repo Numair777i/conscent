@@ -35,7 +35,7 @@ const links = [
 ] as const;
 
 const mobileAnnouncements = [
-  "Free express shipping over ₹999",
+  "Free express shipping over ₹399",
   "Cash on delivery available",
   "8–12 hr extrait projection",
 ];
@@ -191,7 +191,7 @@ export function Navbar() {
             <span key={i} className="flex shrink-0">
               {Array.from({ length: 4 }).map((__, j) => (
                 <span key={j} className="px-8">
-                  Free express shipping over ₹999 — Cash on delivery available
+                  Free express shipping over ₹399 — Cash on delivery available
                 </span>
               ))}
             </span>
