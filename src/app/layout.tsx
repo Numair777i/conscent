@@ -77,6 +77,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#000000",
+  // Light only: tells every browser this site has no dark version, so
+  // "dark mode for websites" / auto-darkening is switched off
+  colorScheme: "only light",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -95,6 +98,7 @@ export default async function RootLayout({
     <html
       lang="en"
       className={`${bebasNeue.variable} ${inter.variable}`}
+      style={{ colorScheme: "only light" }}
       suppressHydrationWarning
     >
       <body className="flex min-h-screen flex-col bg-background font-sans text-foreground antialiased selection:bg-brand selection:text-brand-foreground">

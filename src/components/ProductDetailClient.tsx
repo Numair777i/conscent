@@ -1,10 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { StaticImageData } from "next/image";
 import { PriceBlock } from "@/components/PriceBlock";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  type CarouselApi,
+} from "@/components/ui/carousel";
+import { useCarouselGestures } from "@/hooks/use-carousel-gestures";
 import {
   Minus,
   Plus,
@@ -21,6 +28,9 @@ import { ProductBadge } from "@/components/ProductBadge";
 
 type ProductVariant = Product["variants"][number];
 
+// Slide speed: LOWER = faster / shorter slide (Embla default is 25)
+const SLIDE_DURATION = 16;
+
 interface ProductDetailClientProps {
   product: Product;
 }
@@ -32,9 +42,30 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       ? product.images
       : [product.image];
 
-  const [activeImage, setActiveImage] = useState<string | StaticImageData>(
-    galleryImages[0],
-  );
+  const hasMultiple = galleryImages.length > 1;
+
+  // Gallery carousel: its API lets dots + thumbnails control the slider
+  const [galleryApi, setGalleryApi] = useState<CarouselApi>();
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  // Short swipes + two-finger trackpad swipes change photos
+  useCarouselGestures(galleryApi);
+
+  // Keep dots + thumbnails in sync with whichever photo is showing
+  useEffect(() => {
+    if (!galleryApi) return;
+
+    const sync = () => setActiveIndex(galleryApi.selectedScrollSnap());
+    sync();
+    galleryApi.on("select", sync);
+    galleryApi.on("reInit", sync);
+
+    return () => {
+      galleryApi.off("select", sync);
+      galleryApi.off("reInit", sync);
+    };
+  }, [galleryApi]);
+
   const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(
     product.variants[0],
   );
@@ -72,33 +103,97 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
       <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
         {/* Gallery Section */}
         <div className="flex flex-col gap-4">
-          {/* Main Hero Stage */}
+          {/* Main stage: the aspect box is fixed, so nothing shifts while dragging */}
           <div className="border border-border bg-card relative aspect-4/5 w-full overflow-hidden">
-            <Image
-              src={activeImage}
-              alt={product.name}
-              fill
-              priority
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              className="object-cover transition-opacity duration-300"
-            />
+            {hasMultiple ? (
+              <Carousel
+                setApi={setGalleryApi}
+                opts={{
+                  loop: false,
+                  align: "start",
+                  duration: SLIDE_DURATION,
+                  skipSnaps: false, // one swipe = one photo
+                }}
+                className="h-full cursor-grab select-none active:cursor-grabbing [&>div]:h-full [&>div]:overscroll-x-contain"
+                aria-label={`${product.name} photos`}
+              >
+                {/* ml-0 / pl-0 remove shadcn's default gutter between slides */}
+                <CarouselContent className="touch-pan-y touch-pinch-zoom ml-0 h-full">
+                  {galleryImages.map((imgSrc, idx) => (
+                    <CarouselItem
+                      key={idx}
+                      className="relative h-full pl-0"
+                      aria-label={`Photo ${idx + 1} of ${galleryImages.length}`}
+                    >
+                      <Image
+                        src={imgSrc}
+                        alt={`${product.name} photo ${idx + 1}`}
+                        fill
+                        priority={idx === 0}
+                        sizes="(max-width: 1024px) 100vw, 50vw"
+                        draggable={false}
+                        className="object-cover"
+                      />
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
+            ) : (
+              <Image
+                src={galleryImages[0]}
+                alt={product.name}
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover"
+              />
+            )}
           </div>
 
-          {/* Thumbnail Track (shown when multiple angles exist) */}
-          {galleryImages.length > 1 && (
-            <div className="flex items-center gap-3 overflow-x-auto pb-1 scrollbar-none">
+          {/* Pagination dots (only when there is more than one photo) */}
+          {hasMultiple && (
+            <div
+              className="flex items-center justify-center gap-1"
+              role="tablist"
+              aria-label="Product photo pagination"
+            >
+              {galleryImages.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  role="tab"
+                  aria-selected={idx === activeIndex}
+                  aria-label={`Go to photo ${idx + 1}`}
+                  onClick={() => galleryApi?.scrollTo(idx)}
+                  className="group flex h-6 cursor-pointer items-center px-1"
+                >
+                  <span
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      idx === activeIndex
+                        ? "bg-foreground w-5"
+                        : "bg-foreground/25 group-hover:bg-foreground/50 w-1.5"
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Thumbnails: desktop only (phones use swipe + dots) */}
+          {hasMultiple && (
+            <div className="scrollbar-none hidden items-center gap-3 overflow-x-auto pb-1 sm:flex">
               {galleryImages.map((imgSrc, idx) => {
-                const isSelected = activeImage === imgSrc;
+                const isSelected = idx === activeIndex;
                 return (
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => setActiveImage(imgSrc)}
-                    aria-label={`View photo angle ${idx + 1}`}
-                    className={`relative aspect-square w-20 shrink-0 overflow-hidden border transition-all cursor-pointer bg-card ${
+                    onClick={() => galleryApi?.scrollTo(idx)}
+                    aria-label={`View photo ${idx + 1}`}
+                    className={`relative aspect-square w-20 shrink-0 cursor-pointer overflow-hidden border bg-card transition-all ${
                       isSelected
                         ? "border-brand ring-1 ring-brand"
-                        : "border-border opacity-60 hover:opacity-100 hover:border-foreground/50"
+                        : "border-border opacity-60 hover:border-foreground/50 hover:opacity-100"
                     }`}
                   >
                     <Image
