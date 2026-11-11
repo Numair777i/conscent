@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import Autoplay from "embla-carousel-autoplay";
+import { useEffect, useState, useRef } from "react";
 import {
   Carousel,
   CarouselContent,
@@ -21,7 +22,7 @@ const slides = [
     image: SA,
     eyebrow: "New Extrait",
     title: ["Secret", "Affair"],
-    copy: "Charred oud, black leather, 10+ hour projection.",
+    copy: "Charred oud, black leather, 12+ hour projection.",
     cta: "Shop the drop",
     href: "/parfums/secret-affair",
   },
@@ -43,19 +44,25 @@ const slides = [
   },
 ] as const;
 
-// Time each slide stays on screen before auto-advancing
-const AUTOPLAY_MS = 6000;
+// Time each slide stays on screen before auto-advancing (currently 2 seconds)
+const AUTOPLAY_MS = 2000;
 // Slide speed: LOWER = faster / shorter slide (Embla default is 25)
 const SLIDE_DURATION = 16;
 
 export function HeroSlider() {
+  // 1) Store the plugin in a ref so it doesn't freeze on React re-renders
+  // Use useState with an arrow function () => so it only initializes exactly once
+  const [autoplayPlugin] = useState(() =>
+    Autoplay({ delay: AUTOPLAY_MS, stopOnInteraction: false }),
+  );
+
   const [api, setApi] = useState<CarouselApi>();
   const [index, setIndex] = useState(0);
 
   // Short swipes + two-finger trackpad swipes change slides
   useCarouselGestures(api);
 
-  // 1) Keep the pagination lines in sync with the active slide
+  // 2) Keep the pagination lines in sync with the active slide
   useEffect(() => {
     if (!api) return;
 
@@ -70,46 +77,17 @@ export function HeroSlider() {
     };
   }, [api]);
 
-  // 2) Auto-play: advance every 6s, pause while the user touches/drags,
-  //    and start the countdown again once they let go.
-  useEffect(() => {
-    if (!api) return;
-    // Respect users who ask their device for less motion
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    let timer: ReturnType<typeof setTimeout> | undefined;
-
-    const stop = () => {
-      if (timer) clearTimeout(timer);
-    };
-    const start = () => {
-      stop();
-      timer = setTimeout(() => api.scrollNext(), AUTOPLAY_MS);
-    };
-
-    api.on("pointerDown", stop); // finger / mouse pressed: pause
-    api.on("pointerUp", start); // released: restart the countdown
-    api.on("settle", start); // slide finished moving: restart the countdown
-    start();
-
-    return () => {
-      stop();
-      api.off("pointerDown", stop);
-      api.off("pointerUp", start);
-      api.off("settle", start);
-    };
-  }, [api]);
-
   return (
     <section className="bg-ink group relative h-[78vh] min-h-[520px] w-full overflow-hidden">
       {/* [&>div]:h-full makes Embla's inner viewport fill the section height */}
       <Carousel
         setApi={setApi}
+        plugins={[autoplayPlugin]} // <-- Just pass the state variable directly (no .current)
         opts={{
           loop: true,
           align: "start",
           duration: SLIDE_DURATION,
-          skipSnaps: false, // one swipe = one slide
+          skipSnaps: false,
         }}
         className="h-full cursor-grab select-none active:cursor-grabbing [&>div]:h-full [&>div]:overscroll-x-contain"
         aria-label="Featured products"
