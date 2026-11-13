@@ -17,6 +17,9 @@ export interface Variant {
   price: number;
   compareAt?: number;
   inStock?: boolean;
+  // Photos for THIS size (e.g. the 8 ML vial vs the 50 ML bottle).
+  // If left out, the product's own images are used.
+  images?: (string | StaticImageData)[];
 }
 
 export interface Product {

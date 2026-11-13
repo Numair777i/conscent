@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import type { CartItem, Product, Variant } from "@/types";
 import { calculateShipping } from "@/lib/shipping";
+import { products } from "@/data/products";
 
 interface CartState {
   items: CartItem[];
@@ -56,7 +57,8 @@ export const useCart = create<CartState>()(
                   name: product.name,
                   size: variant.size,
                   price: variant.price,
-                  image: product.image,
+                  // Show the photo of the size that was picked
+                  image: variant.images?.[0] ?? product.image,
                   qty,
                 },
               ];
@@ -79,6 +81,19 @@ export const useCart = create<CartState>()(
         typeof window === "undefined" ? noopStorage : window.localStorage,
       ),
       partialize: (s) => ({ items: s.items }) as unknown as CartState,
+      // On load, drop saved items whose size no longer exists
+      // (e.g. a customer still has a removed 100 ML bottle in their bag)
+      merge: (persisted, current) => {
+        const saved = (persisted as { items?: CartItem[] } | undefined)?.items;
+        const items = (saved ?? []).filter((item) =>
+          products
+            .find((p) => p.id === item.productId)
+            ?.variants.some(
+              (v) => v.size.toLowerCase() === item.size.toLowerCase(),
+            ),
+        );
+        return { ...current, items };
+      },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },

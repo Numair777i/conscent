@@ -12,6 +12,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { useCarouselGestures } from "@/hooks/use-carousel-gestures";
+import { FREE_SHIPPING_THRESHOLD } from "@/lib/shipping";
 import {
   Minus,
   Plus,
@@ -36,11 +37,19 @@ interface ProductDetailClientProps {
 }
 
 export function ProductDetailClient({ product }: ProductDetailClientProps) {
-  // Normalize gallery: prefer product.images if populated; fallback to product.image
+  // First size (8 ML) is selected by default
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(
+    product.variants[0],
+  );
+
+  // Gallery follows the selected size: that size's photos first,
+  // then the product's photos, then the single cover image
   const galleryImages: (string | StaticImageData)[] =
-    product.images && product.images.length > 0
-      ? product.images
-      : [product.image];
+    selectedVariant.images && selectedVariant.images.length > 0
+      ? selectedVariant.images
+      : product.images && product.images.length > 0
+        ? product.images
+        : [product.image];
 
   const hasMultiple = galleryImages.length > 1;
 
@@ -66,9 +75,6 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
     };
   }, [galleryApi]);
 
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant>(
-    product.variants[0],
-  );
   const [quantity, setQuantity] = useState(1);
   const addItem = useCart((s) => s.addItem);
   const openCart = useCart((s) => s.open);
@@ -107,6 +113,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
           <div className="border border-border bg-card relative aspect-4/5 w-full overflow-hidden">
             {hasMultiple ? (
               <Carousel
+                key={selectedVariant.id} // fresh slider (back at photo 1) for each size
                 setApi={setGalleryApi}
                 opts={{
                   loop: false,
@@ -127,7 +134,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                     >
                       <Image
                         src={imgSrc}
-                        alt={`${product.name} photo ${idx + 1}`}
+                        alt={`${product.name} ${selectedVariant.size} photo ${idx + 1}`}
                         fill
                         priority={idx === 0}
                         sizes="(max-width: 1024px) 100vw, 50vw"
@@ -141,7 +148,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
             ) : (
               <Image
                 src={galleryImages[0]}
-                alt={product.name}
+                alt={`${product.name} ${selectedVariant.size}`}
                 fill
                 priority
                 sizes="(max-width: 1024px) 100vw, 50vw"
@@ -305,7 +312,7 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
                 size="detail"
               />
               <p className="text-muted-foreground mt-1 text-[11px] uppercase tracking-wider">
-                {selectedVariant.price >= 999
+                {selectedVariant.price * quantity >= FREE_SHIPPING_THRESHOLD
                   ? "✓ Free Express Shipping Qualified"
                   : "Taxes included. Standard shipping at checkout."}
               </p>

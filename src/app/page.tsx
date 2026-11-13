@@ -127,8 +127,8 @@ export default function Home() {
               className="text-muted-foreground hover:text-foreground mt-4 max-w-md text-sm leading-relaxed sm:text-base block transition-colors"
             >
               Three 8ML extrait vials. Live with each profile on skin for a
-              week, then put the full ₹399 purchase price towards the 50ML or
-              100ML bottle you love. Zero blind-buy regret.
+              week, then put the full ₹399 purchase price towards the 50ML
+              bottle you love. Zero blind-buy regret.
             </Link>
 
             {/* Pricing Summary */}

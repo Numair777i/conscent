@@ -6,9 +6,9 @@ import bottle3 from "@/assets/bottle-3.jpg";
 import bottle4 from "@/assets/bottle-4.jpg";
 import SA from "@/assets/Secret-Affair-Green.jpg";
 import SAbox from "@/assets/secret-affair-box.jpg";
-import liar from "@/assets/Liar.webp";
-import lumora from "@/assets/Lumora.webp";
-import satester from "@/assets/Secret-Affair.webp";
+import liar from "@/assets/Liar.png";
+import lumora from "@/assets/Lumora.png";
+import satester from "@/assets/Secret-Affair.png";
 import tester1 from "@/assets/Pack-of-3.webp";
 import tester2 from "@/assets/Pack-of-3-lying.webp";
 import lumora1 from "@/assets/lumora-right.jpg";
@@ -42,14 +42,20 @@ export const products: Product[] = [
       { layer: "base", name: "Amber" },
     ],
     variants: [
-      { id: "sa-8", size: "8 ML", price: 199, inStock: true },
-      { id: "sa-50", size: "50 ML", price: 699, compareAt: 899, inStock: true },
       {
-        id: "sa-100",
-        size: "100 ML",
-        price: 999,
-        compareAt: 1499,
+        id: "sa-8",
+        size: "8 ML",
+        price: 199,
         inStock: true,
+        images: [satester], // 8 ML vial photo(s)
+      },
+      {
+        id: "sa-50",
+        size: "50 ML",
+        price: 699,
+        compareAt: 899,
+        inStock: true,
+        images: [SA, SAbox], // 50 ML bottle photo(s)
       },
     ],
   },
@@ -77,14 +83,20 @@ export const products: Product[] = [
       { layer: "base", name: "Oakmoss" },
     ],
     variants: [
-      { id: "p2-10", size: "8 ML", price: 199, inStock: true },
-      { id: "p2-50", size: "50 ML", price: 699, compareAt: 899, inStock: true },
       {
-        id: "p2-100",
-        size: "100 ML",
-        price: 999,
-        compareAt: 1499,
+        id: "p2-10",
+        size: "8 ML",
+        price: 199,
         inStock: true,
+        images: [lumora], // 8 ML vial photo(s)
+      },
+      {
+        id: "p2-50",
+        size: "50 ML",
+        price: 699,
+        compareAt: 899,
+        inStock: true,
+        images: [lumora2, lumora3, lumora4, lumora5], // 50 ML bottle photos
       },
     ],
   },
@@ -142,7 +154,7 @@ export const products: Product[] = [
   {
     id: "p6",
     slug: "trial-set",
-    badge: "STARTER_PACK",
+    badge: "STARTER PACK",
     name: "TRIAL SET",
     tagline: "3 vials. Find your signature.",
     description:
