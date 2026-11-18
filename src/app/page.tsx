@@ -15,18 +15,22 @@ import { formatINR } from "@/lib/utils";
 import tester1 from "@/assets/Pack-of-3.webp";
 
 export const metadata: Metadata = {
-  title: { absolute: "CONSCENT | Discover Indie Luxury Fragrances" },
+  title: {
+    absolute:
+      "CONSCENT | Discover Indie Luxury Fragrances (Also searched as Consent Fragrances)",
+  },
   description:
-    "Discover indie luxury fragrances in concentrated extrait de parfum. 25–30% oil, striking projection and 10–12+ hour longevity, handcrafted in India.",
+    "Discover indie luxury fragrances in concentrated extrait de parfum. 25–30% oil, striking projection and 10–12+ hour longevity, handcrafted in India.(sometimes spelled Consent Fragrances)",
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "en_IN",
     siteName: "CONSCENT",
     url: "/",
-    title: "CONSCENT | Discover Indie Luxury Fragrances",
+    title:
+      "CONSCENT | Discover Indie Luxury Fragrances (Also searched as Consent Fragrances)",
     description:
-      "Discover indie luxury fragrances in concentrated extrait de parfum. 25–30% oil, striking projection and 8–10+ hour longevity, handcrafted in India.",
+      "Discover indie luxury fragrances in concentrated extrait de parfum. 25–30% oil, striking projection and 8–10+ hour longevity, handcrafted in India. (sometimes spelled Consent Fragrances)",
     images: [
       {
         url: "/og-image.jpg",
@@ -61,6 +65,10 @@ const faqs = [
   {
     q: "Do you accept returns?",
     a: "Unopened full-size bottles can be returned within 7 days of delivery. Trial sets are final sale due to hygiene standards.",
+  },
+  {
+    q: "Is it spelled Conscent Fragrances or Consent Fragrances?",
+    a: "The official brand name is CONSCENT Fragrances, though it is frequently searched as Consent Fragrances by mistake.",
   },
 ];
 
