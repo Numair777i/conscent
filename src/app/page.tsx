@@ -14,23 +14,23 @@ import { products } from "@/data/products";
 import { formatINR } from "@/lib/utils";
 import tester1 from "@/assets/Pack-of-3.webp";
 
+// Defined once so title/description can never drift between
+// <title>, OpenGraph and Twitter again.
+const TITLE = "CONSCENT Fragrances | Indie Luxury Extrait de Parfum"; // 52 chars
+const DESCRIPTION =
+  "Discover indie luxury fragrances in concentrated extrait de parfum. 25–30% oil, bold projection and 8–10+ hour wear, handcrafted in India."; // 138 chars
+
 export const metadata: Metadata = {
-  title: {
-    absolute:
-      "CONSCENT | Discover Indie Luxury Fragrances (Also searched as Consent Fragrances)",
-  },
-  description:
-    "Discover indie luxury fragrances in concentrated extrait de parfum. 25–30% oil, striking projection and 10–12+ hour longevity, handcrafted in India.(sometimes spelled Consent Fragrances)",
+  title: { absolute: TITLE },
+  description: DESCRIPTION,
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "en_IN",
     siteName: "CONSCENT",
     url: "/",
-    title:
-      "CONSCENT | Discover Indie Luxury Fragrances (Also searched as Consent Fragrances)",
-    description:
-      "Discover indie luxury fragrances in concentrated extrait de parfum. 25–30% oil, striking projection and 8–10+ hour longevity, handcrafted in India. (sometimes spelled Consent Fragrances)",
+    title: TITLE,
+    description: DESCRIPTION,
     images: [
       {
         url: "/og-image.jpg",
@@ -42,9 +42,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "CONSCENT | Discover Indie Luxury Fragrances",
-    description:
-      "Discover indie luxury fragrances in concentrated extrait de parfum. 25–30% oil, striking projection and 10–12+ hour longevity, handcrafted in India.",
+    title: TITLE,
+    description: DESCRIPTION,
     images: ["/og-image.jpg"],
   },
 };
@@ -52,7 +51,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     q: "How long does a CONSCENT scent last?",
-    a: "Our extraits run 20–30% concentration and typically last 8–10 hours on skin, longer on fabric.",
+    a: "Our extraits run 25–30% concentration and typically last 8–10 hours on skin, longer on fabric.",
   },
   {
     q: "Can I try before buying a full bottle?",
