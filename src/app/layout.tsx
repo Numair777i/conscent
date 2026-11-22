@@ -23,14 +23,18 @@ const inter = Inter({
   display: "swap",
 });
 
+// Defined once so <title>, OpenGraph and Twitter can never drift apart.
+const DEFAULT_TITLE = "CONSCENT Fragrances | Indie Extrait de Parfum"; // 45 chars
+const DEFAULT_DESCRIPTION =
+  "Indie luxury extrait de parfum at 25–30% concentration. Handcrafted in small batches in India for bold projection and 8–10+ hour wear."; // 134 chars
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://conscentfragrances.com"),
   title: {
-    default: "CONSCENT | Indie Extrait de Parfum",
+    default: DEFAULT_TITLE,
     template: "%s | CONSCENT",
   },
-  description:
-    "Indie luxury extrait de parfum at 25–30% concentration. Handcrafted in small batches in India for bold projection and 10–12+ hour longevity.",
+  description: DEFAULT_DESCRIPTION,
   applicationName: "CONSCENT",
   robots: {
     index: true,
@@ -47,9 +51,8 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_IN",
     siteName: "CONSCENT",
-    title: "CONSCENT | Indie Extrait de Parfum",
-    description:
-      "Indie luxury extrait de parfum at 25–30% concentration. Handcrafted in small batches in India for bold projection and 10–12+ hour longevity.",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
     images: [
       {
         url: "/og-image.jpg",
@@ -61,18 +64,12 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "CONSCENT | Indie Extrait de Parfum",
-    description:
-      "Indie luxury extrait de parfum at 25–30% concentration. Handcrafted in small batches in India for bold projection and 10–12+ hour longevity.",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
     images: ["/og-image.jpg"],
   },
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "32x32" },
-      { url: "/icon.png", sizes: "865x865", type: "image/png" },
-    ],
-    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
-  },
+  // No `icons` block on purpose: Next.js reads favicon.ico, icon.svg, icon.png
+  // and apple-icon.png straight from src/app/, and manifest.ts adds the manifest.
 };
 
 export const viewport: Viewport = {
@@ -82,7 +79,6 @@ export const viewport: Viewport = {
   colorScheme: "only light",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
   viewportFit: "cover", // Tells Safari to use the full hardware display
 };
 

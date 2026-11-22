@@ -2,9 +2,8 @@ import type { MetadataRoute } from "next";
 import { products } from "@/data/products";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = (
-    process.env.NEXT_PUBLIC_APP_URL || "https://conscentfragrances.com"
-  ).replace(/\/+$/, "");
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://conscentfragrances.com";
 
   // 1. Static public pages
   const staticRoutes: MetadataRoute.Sitemap = [
